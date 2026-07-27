@@ -105,7 +105,7 @@ export default function PortalClient() {
       <button className="portal-logout" onClick={() => setSession(null)}><Icon name="logout" />Keluar & ganti akun</button>
     </aside>
     <main className="portal-main">
-      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="network-pill"><i/>Demo · Base Sepolia</div></header>
+      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><div className="network-pill"><i/>Demo · Base Sepolia</div><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
       <AnimatePresence mode="wait"><motion.div key={`${session}-${screen}`} initial={reduceMotion ? false : {opacity:0,y:10}} animate={{opacity:1,y:0}} exit={reduceMotion ? undefined : {opacity:0,y:-6}} transition={{duration:.2,ease:"easeOut"}}>{activeView}</motion.div></AnimatePresence>
     </main>
   </div>;
