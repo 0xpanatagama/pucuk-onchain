@@ -5,3 +5,5 @@ dist
 *.tar
 *.tar.gz
 .vercel
+.wrangler
+*.tsbuildinfo
