@@ -1,4 +1,4 @@
-# PucukProof Pilot
+# Pucuk Pilot
 
 Mobile-first prototype for shared fresh-tea-leaf receipts: intake, manual quality
 assessment, integer-IDR pricing, farmer confirmation, public verification,

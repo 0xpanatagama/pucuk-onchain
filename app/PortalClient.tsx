@@ -7,10 +7,10 @@ type Role = "Operator" | "Petani" | "Pabrik" | "Auditor";
 type Screen = "home" | "intake" | "receipts" | "payments" | "verify" | "disputes";
 
 const profiles: Record<Role, { name: string; email: string; org: string; initials: string; description: string }> = {
-  Operator: { name: "Nadia Anwar", email: "nadia@pucukproof.demo", org: "Titik Koleksi Cisarua", initials: "NA", description: "Catat penerimaan dan pemeriksaan daun" },
-  Petani: { name: "Sari Rahayu", email: "sari@pucukproof.demo", org: "Koperasi Pucuk Sejahtera", initials: "SR", description: "Tinjau receipt dan status pembayaran" },
-  Pabrik: { name: "Rizky Pratama", email: "rizky@pucukproof.demo", org: "Pabrik Teh Nusantara", initials: "RP", description: "Setujui kewajiban dan catat pembayaran" },
-  Auditor: { name: "Ayu Kusuma", email: "ayu@pucukproof.demo", org: "Tim Audit Pilot", initials: "AK", description: "Verifikasi bukti dan selesaikan sengketa" },
+  Operator: { name: "Nadia Anwar", email: "nadia@pucuk.demo", org: "Titik Koleksi Cisarua", initials: "NA", description: "Catat penerimaan dan pemeriksaan daun" },
+  Petani: { name: "Sari Rahayu", email: "sari@pucuk.demo", org: "Koperasi Pucuk Sejahtera", initials: "SR", description: "Tinjau receipt dan status pembayaran" },
+  Pabrik: { name: "Rizky Pratama", email: "rizky@pucuk.demo", org: "Pabrik Teh Nusantara", initials: "RP", description: "Setujui kewajiban dan catat pembayaran" },
+  Auditor: { name: "Ayu Kusuma", email: "ayu@pucuk.demo", org: "Tim Audit Pilot", initials: "AK", description: "Verifikasi bukti dan selesaikan sengketa" },
 };
 
 const nav: Record<Role, { screen: Screen; label: string; icon: string; badge?: string }[]> = {
@@ -93,7 +93,7 @@ export default function PortalClient() {
   return <div className={`portal-shell role-${session.toLowerCase()}`}>
     <AnimatePresence>{toast && <motion.div className="portal-toast" initial={{opacity:0,y:-14,scale:.96}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-10,scale:.98}}><Icon name="check" />{toast}</motion.div>}</AnimatePresence>
     <aside className="portal-sidebar">
-      <button className="portal-logo" onClick={() => setScreen("home")}><i><Icon name="leaf" /></i><strong>Pucuk<span>Proof</span></strong></button>
+      <button className="portal-logo" onClick={() => setScreen("home")}><i><Icon name="leaf" /></i><strong>Pucuk</strong></button>
       <div className="portal-identity"><span>{profile.initials}</span><div><small>ANDA MASUK KE</small><strong>{portalTitle}</strong><em>{profile.org}</em></div></div>
       <nav><p>KHUSUS {session.toUpperCase()}</p>{nav[session].map((item) => <button key={item.screen} className={screen === item.screen ? "active" : ""} onClick={() => {
         setScreen(item.screen);
@@ -113,9 +113,9 @@ function Login({ selected, setSelected, onLogin }: { selected: Role; setSelected
   const profile = profiles[selected];
   return <main className="auth-page">
     <section className="auth-story">
-      <div className="auth-logo"><i><Icon name="leaf" /></i><strong>Pucuk<span>Proof</span></strong></div>
-      <div><p className="portal-kicker">PILOT TRANSAKSI DAUN TEH</p><h1>Satu bukti.<br/>Empat portal berbeda.</h1><p>Setiap pengguna hanya melihat informasi dan tindakan yang mereka perlukan.</p></div>
-      <div className="auth-proof"><p><Icon name="check"/><span><strong>Jelas bagi petani</strong><small>Berat, kualitas, harga, dan pembayaran.</small></span></p><p><Icon name="shield"/><span><strong>Dapat diaudit</strong><small>Riwayat asli tetap utuh saat dikoreksi.</small></span></p></div>
+      <div className="auth-logo"><i><Icon name="leaf" /></i><strong>Pucuk</strong></div>
+      <div><p className="portal-kicker">CATAT · SEPAKATI · BAYAR</p><h1>Setiap daun tercatat.<br/>Setiap pembayaran jelas.</h1><p>Pucuk mencatat hasil timbang, kualitas, dan harga—lalu membantu semua pihak memantau pembayaran dan menelusuri buktinya.</p></div>
+      <div className="auth-proof"><p><Icon name="check"/><span><strong>Transaksi tanpa tebak-tebakan</strong><small>Lihat berat, kualitas, harga, dan status pembayaran.</small></span></p><p><Icon name="shield"/><span><strong>Bukti siap ditelusuri</strong><small>Setiap perubahan tersimpan tanpa menghapus catatan awal.</small></span></p></div>
       <small>Demo testnet · Tidak ada pembayaran kripto</small>
     </section>
     <section className="auth-form-wrap"><div className="auth-card">

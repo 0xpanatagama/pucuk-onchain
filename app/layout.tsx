@@ -3,7 +3,7 @@ import "./globals.css";
 import "./portal.css";
 
 export const metadata: Metadata = {
-  title: "PucukProof Pilot",
+  title: "Pucuk · Transaksi Daun Teh",
   description: "Satu transaksi daun teh yang jelas, terverifikasi, dan dipercaya.",
 };
 
