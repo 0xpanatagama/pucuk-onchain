@@ -11,3 +11,6 @@ artifacts
 cache
 .hardhat-local
 pnpm-workspace.yaml
+.env
+.env.local
+.env.*.local
