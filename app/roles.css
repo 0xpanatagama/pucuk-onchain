@@ -1,0 +1,243 @@
+header {
+  position: relative;
+  z-index: 5;
+}
+
+.role-switcher {
+  position: relative;
+}
+
+.role-switcher > span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: #8a968f;
+}
+
+.role-trigger {
+  min-width: 176px;
+  border: 1px solid #cfdbd4;
+  border-radius: 10px;
+  background: #fbfcfa;
+  padding: 7px 10px;
+  display: grid;
+  grid-template-columns: 30px 1fr 16px;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(24, 55, 42, .04);
+}
+
+.role-trigger:hover,
+.role-trigger[aria-expanded="true"] {
+  border-color: #4b8469;
+  box-shadow: 0 0 0 3px rgba(75, 132, 105, .1);
+}
+
+.role-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #e4f0df;
+  color: #2d6a4d;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.role-trigger > span,
+.role-menu > button span {
+  display: flex;
+  flex-direction: column;
+  letter-spacing: 0;
+}
+
+.role-trigger small {
+  font-size: 8px;
+  line-height: 1;
+  color: #829088;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.role-trigger strong {
+  font-size: 11px;
+  line-height: 1.25;
+  margin-top: 3px;
+}
+
+.role-trigger > svg {
+  width: 15px;
+  color: #718078;
+  transition: transform .18s;
+}
+
+.role-trigger > svg.rotate {
+  transform: rotate(180deg);
+}
+
+.role-menu {
+  position: absolute;
+  right: 0;
+  top: 53px;
+  width: 310px;
+  background: #fff;
+  border: 1px solid #dce4df;
+  border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(22, 54, 41, .18);
+  padding: 8px;
+  animation: roleIn .16s ease-out;
+}
+
+.role-menu::before {
+  content: "";
+  position: absolute;
+  right: 24px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border-left: 1px solid #dce4df;
+  border-top: 1px solid #dce4df;
+  transform: rotate(45deg);
+}
+
+.role-menu-title {
+  padding: 11px 12px 9px;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #edf0ee;
+  margin-bottom: 5px;
+}
+
+.role-menu-title strong {
+  font-size: 11px;
+  margin: 0;
+}
+
+.role-menu-title small,
+.role-menu > button small {
+  font-size: 9px;
+  color: #7d8b83;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-top: 3px;
+}
+
+.role-menu > button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 35px 1fr 20px;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.role-menu > button:hover {
+  background: #f4f7f3;
+}
+
+.role-menu > button.selected {
+  background: #edf5e9;
+}
+
+.role-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #eef2ef;
+  color: #4e6d5e;
+  display: grid;
+  place-items: center;
+}
+
+.role-menu > button.selected .role-icon {
+  background: #dcecd5;
+  color: #2e6b4e;
+}
+
+.role-icon svg {
+  width: 17px;
+}
+
+.role-menu > button strong {
+  font-size: 11px;
+  margin: 0;
+}
+
+.role-check {
+  color: #2f704f;
+}
+
+.role-check svg {
+  width: 16px;
+}
+
+.role-menu > p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f6f8f6;
+  color: #74827a;
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin: 6px 0 0;
+  font-size: 8px;
+}
+
+.role-menu > p svg {
+  width: 13px;
+}
+
+@keyframes roleIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 720px) {
+  header {
+    height: 66px;
+    padding: 0 12px;
+  }
+
+  header > div:first-child small {
+    display: none;
+  }
+
+  header > div:first-child strong {
+    max-width: 160px;
+  }
+
+  .role-switcher > span {
+    display: none;
+  }
+
+  .role-trigger {
+    min-width: 142px;
+    padding: 6px 8px;
+    grid-template-columns: 28px 1fr 14px;
+  }
+
+  .role-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .role-menu {
+    position: fixed;
+    top: 74px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+}

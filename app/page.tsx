@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Role = "Operator" | "Petani" | "Pabrik" | "Auditor";
 type View = "home" | "intake" | "receipt" | "payables" | "verify" | "dispute";
 
-const roles: { name: Role; initials: string }[] = [
-  { name: "Operator", initials: "NA" },
-  { name: "Petani", initials: "SR" },
-  { name: "Pabrik", initials: "RP" },
-  { name: "Auditor", initials: "AK" },
+const roles: { name: Role; initials: string; description: string; icon: string }[] = [
+  { name: "Operator", initials: "NA", description: "Catat penerimaan dan kualitas", icon: "plus" },
+  { name: "Petani", initials: "SR", description: "Tinjau dan konfirmasi tanda terima", icon: "leaf" },
+  { name: "Pabrik", initials: "RP", description: "Kelola kewajiban pembayaran", icon: "factory" },
+  { name: "Auditor", initials: "AK", description: "Verifikasi bukti dan sengketa", icon: "shield" },
 ];
 
 const receipt = {
@@ -52,6 +52,8 @@ export default function Page() {
   const [toast, setToast] = useState("");
   const [paid, setPaid] = useState(false);
   const [disputed, setDisputed] = useState(false);
+  const [roleOpen, setRoleOpen] = useState(false);
+  const roleMenu = useRef<HTMLDivElement>(null);
 
   const roleData = useMemo(() => roles.find((r) => r.name === role)!, [role]);
   const flash = (message: string) => {
@@ -60,8 +62,29 @@ export default function Page() {
   };
   const switchRole = (next: Role) => {
     setRole(next);
-    setView(next === "Pabrik" ? "payables" : next === "Auditor" ? "verify" : "home");
+    setRoleOpen(false);
+    setView(next === "Operator" ? "home" : next === "Petani" ? "receipt" : next === "Pabrik" ? "payables" : "verify");
+    window.localStorage.setItem("pucukproof-role", next);
+    flash(`Mode ${next} aktif`);
   };
+  useEffect(() => {
+    const saved = window.localStorage.getItem("pucukproof-role") as Role | null;
+    if (saved && roles.some((item) => item.name === saved)) switchRole(saved);
+  // Restore the last demo persona once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (roleMenu.current && !roleMenu.current.contains(event.target as Node)) setRoleOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => event.key === "Escape" && setRoleOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", escape);
+    };
+  }, []);
 
   return (
     <div className="app-shell">
@@ -89,11 +112,22 @@ export default function Page() {
       <main>
         <header>
           <div><small>PucukProof Pilot</small><strong>Pabrik Teh Nusantara · Titik Koleksi Cisarua</strong></div>
-          <div className="role-switcher">
-            <span>LIHAT SEBAGAI</span>
-            <select value={role} onChange={(e) => switchRole(e.target.value as Role)} aria-label="Pilih peran">
-              {roles.map((r) => <option key={r.name}>{r.name}</option>)}
-            </select>
+          <div className="role-switcher" ref={roleMenu}>
+            <span>MODE DEMO</span>
+            <button className="role-trigger" aria-haspopup="menu" aria-expanded={roleOpen} onClick={() => setRoleOpen(!roleOpen)}>
+              <i className="role-avatar">{roleData.initials}</i>
+              <span><small>Lihat sebagai</small><strong>{role}</strong></span>
+              <svg className={roleOpen ? "rotate" : ""} viewBox="0 0 24 24"><path d="m7 10 5 5 5-5" /></svg>
+            </button>
+            {roleOpen && <div className="role-menu" role="menu">
+              <div className="role-menu-title"><strong>Ganti peran demo</strong><small>Setiap peran membuka ruang kerja yang berbeda.</small></div>
+              {roles.map((item) => <button role="menuitem" className={item.name === role ? "selected" : ""} key={item.name} onClick={() => switchRole(item.name)}>
+                <i className="role-icon"><Icon name={item.icon} /></i>
+                <span><strong>{item.name}</strong><small>{item.description}</small></span>
+                {item.name === role && <i className="role-check"><Icon name="check" /></i>}
+              </button>)}
+              <p><Icon name="shield" /> Data demo saja · tidak memindahkan dana</p>
+            </div>}
           </div>
         </header>
 
