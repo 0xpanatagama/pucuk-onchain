@@ -41,6 +41,18 @@ BASE_SEPOLIA_PRIVATE_KEY=
 Never commit a private key or `.env` file. The contract does not execute
 payments and should not receive ETH.
 
+Deploy after funding the derived wallet with Base Sepolia ETH:
+
+```bash
+pnpm contracts:deploy:base-sepolia
+```
+
+Current Base Sepolia deployment:
+
+- Registry: `0x18708aE53414044F7651D7aA4982494bcb2E21b2`
+- Chain ID: `84532`
+- Deployment record: `deployments/base-sepolia.json`
+
 Mobile-first prototype for shared fresh-tea-leaf receipts: intake, manual quality
 assessment, integer-IDR pricing, farmer confirmation, public verification,
 payment status, and dispute handling.

@@ -1,0 +1,9 @@
+{
+  "network": "Base Sepolia",
+  "chainId": 84532,
+  "contract": "PucukReceiptRegistry",
+  "address": "0x18708aE53414044F7651D7aA4982494bcb2E21b2",
+  "deployer": "0xbCcBD9daD1E2cBC84eE46cEfF97256f7663C0F3b",
+  "transactionHash": "0x34ca422b1f9d17ff41668d5b49929ac36abad5e079c2d5a2e0b4762e77e786e5",
+  "blockNumber": 44698331
+}

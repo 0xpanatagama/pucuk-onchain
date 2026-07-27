@@ -10,6 +10,7 @@
     "build": "next build",
     "build:sites": "vinext build",
     "contracts:compile": "hardhat compile",
+    "contracts:deploy:base-sepolia": "hardhat run scripts/deploy-registry.ts --network baseSepolia --build-profile production",
     "contracts:test": "hardhat test",
     "start": "next start",
     "typecheck": "tsc --noEmit"
