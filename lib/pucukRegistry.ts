@@ -5,9 +5,9 @@ export const PUCUK_REGISTRY_ADDRESS =
     "0x18708aE53414044F7651D7aA4982494bcb2E21b2") as `0x${string}`;
 
 export const PUCUK_EXPLORER = "https://sepolia.basescan.org";
-export const PUCUK_DEMO_RECEIPT_ID = keccak256(
-  stringToHex("PUCUK-WEB-DEMO-PP-2026-000042-v1"),
-);
+export const PUCUK_DEFAULT_DEMO_ID = "PP-2026-000042-v1";
+export const pucukDemoReceiptId = (demoId: string) =>
+  keccak256(stringToHex(`PUCUK-WEB-DEMO-${demoId}`));
 
 export const receiptStates = [
   "Draft",

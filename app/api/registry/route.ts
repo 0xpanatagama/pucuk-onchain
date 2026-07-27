@@ -10,9 +10,10 @@ import {
 import { baseSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import {
-  PUCUK_DEMO_RECEIPT_ID,
+  PUCUK_DEFAULT_DEMO_ID,
   PUCUK_EXPLORER,
   PUCUK_REGISTRY_ADDRESS,
+  pucukDemoReceiptId,
   pucukRegistryAbi,
   receiptStates,
 } from "../../../lib/pucukRegistry";
@@ -24,7 +25,12 @@ const rpcUrl =
   process.env.BASE_SEPOLIA_RPC_URL ?? "https://base-sepolia-rpc.publicnode.com";
 const publicClient = createPublicClient({ chain: baseSepolia, transport: http(rpcUrl) });
 
-async function transactionHistory() {
+const normalizeDemoId = (value: unknown) =>
+  typeof value === "string" && /^[a-zA-Z0-9-]{1,64}$/.test(value)
+    ? value
+    : PUCUK_DEFAULT_DEMO_ID;
+
+async function transactionHistory(receiptId: Hash) {
   const fromEtherscan = async () => {
     const apiKey = process.env.ETHERSCAN_API_KEY;
     if (!apiKey) return [];
@@ -35,7 +41,7 @@ async function transactionHistory() {
       fromBlock: "44698331",
       toBlock: "latest",
       address: PUCUK_REGISTRY_ADDRESS,
-      topic1: PUCUK_DEMO_RECEIPT_ID,
+      topic1: receiptId,
       page: "1",
       offset: "100",
       apikey: apiKey,
@@ -62,7 +68,7 @@ async function transactionHistory() {
         address: PUCUK_REGISTRY_ADDRESS,
         fromBlock: `0x${44_698_331n.toString(16)}`,
         toBlock: "latest",
-        topics: [null, PUCUK_DEMO_RECEIPT_ID],
+        topics: [null, receiptId],
       }],
     });
     const hashes = [...new Set(logs.map((log) => log.transactionHash))].filter(
@@ -83,13 +89,16 @@ async function transactionHistory() {
 async function responseFor(
   receipt: Awaited<ReturnType<typeof readReceipt>>,
   transactions: Hash[] = [],
+  demoId = PUCUK_DEFAULT_DEMO_ID,
 ) {
-  const history = await transactionHistory();
+  const receiptId = pucukDemoReceiptId(demoId);
+  const history = await transactionHistory(receiptId);
   const allTransactions = [...new Set([...history, ...transactions])];
   return NextResponse.json({
     connected: true,
     exists: receipt !== null,
-    receiptId: PUCUK_DEMO_RECEIPT_ID,
+    demoId,
+    receiptId,
     contractAddress: PUCUK_REGISTRY_ADDRESS,
     explorerUrl: `${PUCUK_EXPLORER}/address/${PUCUK_REGISTRY_ADDRESS}`,
     state: receipt ? receiptStates[receipt.state] : "Draft",
@@ -102,13 +111,13 @@ async function responseFor(
   });
 }
 
-async function readReceipt() {
+async function readReceipt(receiptId: Hash) {
   try {
     return await publicClient.readContract({
       address: PUCUK_REGISTRY_ADDRESS,
       abi: pucukRegistryAbi,
       functionName: "getReceipt",
-      args: [PUCUK_DEMO_RECEIPT_ID],
+      args: [receiptId],
     });
   } catch {
     return null;
@@ -127,8 +136,10 @@ async function waitFor(check: () => Promise<boolean>) {
   throw new Error("Base Sepolia state did not become readable in time");
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const demoId = normalizeDemoId(new URL(request.url).searchParams.get("demo"));
+    const receiptId = pucukDemoReceiptId(demoId);
     const code = await publicClient.getCode({ address: PUCUK_REGISTRY_ADDRESS });
     if (!code) {
       return NextResponse.json(
@@ -136,7 +147,7 @@ export async function GET() {
         { status: 503 },
       );
     }
-    return responseFor(await readReceipt());
+    return responseFor(await readReceipt(receiptId), [], demoId);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registry is unavailable";
     return NextResponse.json({ connected: false, error: message }, { status: 503 });
@@ -155,7 +166,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as { action?: string };
+    const body = (await request.json()) as { action?: string; demoId?: string };
+    const demoId = normalizeDemoId(body.demoId);
+    const receiptId = pucukDemoReceiptId(demoId);
     const allowed = new Set([
       "create",
       "farmerAgree",
@@ -231,25 +244,25 @@ export async function POST(request: Request) {
       }
     };
 
-    let receipt = await readReceipt();
+    let receipt = await readReceipt(receiptId);
     if (body.action === "create") {
       if (!receipt) {
         await ensureRole(1);
         await send("createDraft", [
-          PUCUK_DEMO_RECEIPT_ID,
+          receiptId,
           account.address,
           account.address,
           keccak256(stringToHex("PP-2026-000042-commercial-v1")),
           keccak256(stringToHex("PP-2026-000042-evidence-v1")),
           95_625n,
         ]);
-        await waitFor(async () => (await readReceipt()) !== null);
-        receipt = await readReceipt();
+        await waitFor(async () => (await readReceipt(receiptId)) !== null);
+        receipt = await readReceipt(receiptId);
       }
       if (receipt?.state === 0) {
         await ensureRole(1);
-        await send("submitForFarmer", [PUCUK_DEMO_RECEIPT_ID]);
-        await waitFor(async () => (await readReceipt())?.state === 1);
+        await send("submitForFarmer", [receiptId]);
+        await waitFor(async () => (await readReceipt(receiptId))?.state === 1);
       }
     } else if (!receipt) {
       return NextResponse.json(
@@ -257,18 +270,18 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     } else if (body.action === "farmerAgree" && receipt.state === 1) {
-      await send("farmerAgree", [PUCUK_DEMO_RECEIPT_ID]);
-      await waitFor(async () => (await readReceipt())?.state === 2);
+      await send("farmerAgree", [receiptId]);
+      await waitFor(async () => (await readReceipt(receiptId))?.state === 2);
     } else if (body.action === "farmerReject" && receipt.state === 1) {
       await send("farmerReject", [
-        PUCUK_DEMO_RECEIPT_ID,
+        receiptId,
         keccak256(stringToHex("farmer-correction-request")),
       ]);
-      await waitFor(async () => (await readReceipt())?.state === 0);
+      await waitFor(async () => (await readReceipt(receiptId))?.state === 0);
     } else if (body.action === "approve" && receipt.state === 2) {
       await ensureRole(2);
-      await send("approveLiability", [PUCUK_DEMO_RECEIPT_ID]);
-      await waitFor(async () => (await readReceipt())?.state === 3);
+      await send("approveLiability", [receiptId]);
+      await waitFor(async () => (await readReceipt(receiptId))?.state === 3);
     } else if (
       body.action === "pay" &&
       (receipt.state === 3 || receipt.state === 4)
@@ -278,27 +291,27 @@ export async function POST(request: Request) {
         address: PUCUK_REGISTRY_ADDRESS,
         abi: pucukRegistryAbi,
         functionName: "outstandingAmount",
-        args: [PUCUK_DEMO_RECEIPT_ID],
+        args: [receiptId],
       });
       await send("recordPayment", [
-        PUCUK_DEMO_RECEIPT_ID,
+        receiptId,
         outstanding,
         keccak256(stringToHex("PP-2026-000042-bank-proof")),
       ]);
-      await waitFor(async () => (await readReceipt())?.state === 5);
+      await waitFor(async () => (await readReceipt(receiptId))?.state === 5);
     } else if (
       body.action === "dispute" &&
       (receipt.state === 2 || receipt.state === 3)
     ) {
       await send("openDispute", [
-        PUCUK_DEMO_RECEIPT_ID,
+        receiptId,
         keccak256(stringToHex("PP-2026-000042-correction-claim")),
       ]);
-      await waitFor(async () => (await readReceipt())?.state === 6);
+      await waitFor(async () => (await readReceipt(receiptId))?.state === 6);
     }
 
-    receipt = await readReceipt();
-    return responseFor(receipt, hashes);
+    receipt = await readReceipt(receiptId);
+    return responseFor(receipt, hashes, demoId);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown registry error";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -9,6 +9,7 @@ type ReceiptState = "Draft" | "AwaitingFarmer" | "Registered" | "Approved" | "Pa
 type ChainSnapshot = {
   connected: boolean;
   exists: boolean;
+  demoId: string;
   receiptId: string;
   contractAddress: string;
   explorerUrl: string;
@@ -18,6 +19,7 @@ type ChainSnapshot = {
   transactions: { hash: string; url: string }[];
 };
 
+const DEFAULT_DEMO_ID = "PP-2026-000042-v1";
 const profiles: Record<Role, { name: string; email: string; org: string; initials: string; description: string }> = {
   Operator: { name: "Nadia Anwar", email: "nadia@pucuk.demo", org: "Titik Koleksi Cisarua", initials: "NA", description: "Catat penerimaan dan pemeriksaan daun" },
   Petani: { name: "Sari Rahayu", email: "sari@pucuk.demo", org: "Koperasi Pucuk Sejahtera", initials: "SR", description: "Tinjau receipt dan status pembayaran" },
@@ -92,6 +94,7 @@ export default function PortalClient() {
   const [chain, setChain] = useState<ChainSnapshot | null>(null);
   const [chainBusy, setChainBusy] = useState(false);
   const [chainError, setChainError] = useState("");
+  const [demoId, setDemoId] = useState(DEFAULT_DEMO_ID);
   const reduceMotion = useReducedMotion();
 
   const flash = (text: string) => {
@@ -102,7 +105,7 @@ export default function PortalClient() {
   const applySnapshot = useCallback((snapshot: ChainSnapshot) => {
     let savedTransactions: ChainSnapshot["transactions"] = [];
     try {
-      const saved = window.localStorage.getItem("pucuk-demo-transactions");
+      const saved = window.localStorage.getItem(`pucuk-demo-transactions-${snapshot.demoId}`);
       savedTransactions = saved ? JSON.parse(saved) as ChainSnapshot["transactions"] : [];
     } catch {
       savedTransactions = [];
@@ -118,7 +121,7 @@ export default function PortalClient() {
     const mergedSnapshot = { ...snapshot, transactions: mergedTransactions };
     setChain(mergedSnapshot);
     window.localStorage.setItem(
-      "pucuk-demo-transactions",
+      `pucuk-demo-transactions-${snapshot.demoId}`,
       JSON.stringify(mergedTransactions),
     );
     setReceiptState(snapshot.state);
@@ -127,9 +130,9 @@ export default function PortalClient() {
     setChainError("");
   }, []);
 
-  const syncChain = useCallback(async () => {
+  const syncChain = useCallback(async (targetDemoId: string) => {
     try {
-      const response = await fetch("/api/registry", { cache: "no-store" });
+      const response = await fetch(`/api/registry?demo=${encodeURIComponent(targetDemoId)}`, { cache: "no-store" });
       const data = await readApiResponse<ChainSnapshot & { error?: string }>(response);
       if (!response.ok) throw new Error(data.error || "Registry tidak dapat dibaca");
       applySnapshot(data);
@@ -139,7 +142,9 @@ export default function PortalClient() {
   }, [applySnapshot]);
 
   useEffect(() => {
-    void syncChain();
+    const savedDemoId = window.localStorage.getItem("pucuk-active-demo") || DEFAULT_DEMO_ID;
+    setDemoId(savedDemoId);
+    void syncChain(savedDemoId);
   }, [syncChain]);
 
   const runChainAction = async (action: string, success: string) => {
@@ -151,7 +156,7 @@ export default function PortalClient() {
       const response = await fetch("/api/registry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, demoId }),
       });
       const data = await readApiResponse<ChainSnapshot & { error?: string }>(response);
       if (!response.ok) throw new Error(data.error || "Transaksi gagal");
@@ -166,6 +171,26 @@ export default function PortalClient() {
     } finally {
       setChainBusy(false);
     }
+  };
+
+  const startNewDemo = () => {
+    if (chainBusy) return;
+    const confirmed = window.confirm(
+      "Mulai transaksi demo baru? Catatan lama tetap tersimpan di Base Sepolia.",
+    );
+    if (!confirmed) return;
+    const nextDemoId = `demo-${Date.now()}-${window.crypto.randomUUID().slice(0, 8)}`;
+    window.localStorage.setItem("pucuk-active-demo", nextDemoId);
+    setDemoId(nextDemoId);
+    setChain(null);
+    setChainError("");
+    setReceiptState("Draft");
+    setPaid(false);
+    setDisputed(false);
+    setIntakeStep(1);
+    setScreen("intake");
+    void syncChain(nextDemoId);
+    flash("Demo baru siap. Lengkapi penerimaan untuk membuat transaksi.");
   };
 
   if (!session) {
@@ -204,8 +229,8 @@ export default function PortalClient() {
       <button className="portal-logout" onClick={() => setSession(null)}><Icon name="logout" />Keluar & ganti akun</button>
     </aside>
     <main className="portal-main">
-      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Live · Base Sepolia"}</a><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
-      {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `PP-2026-000042 · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
+      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Live · Base Sepolia"}</a>{session === "Operator" && <button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button>}<button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
+      {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `Demo ${demoId.slice(-12)} · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
       <AnimatePresence mode="wait"><motion.div key={`${session}-${screen}`} initial={reduceMotion ? false : {opacity:0,y:10}} animate={{opacity:1,y:0}} exit={reduceMotion ? undefined : {opacity:0,y:-6}} transition={{duration:.2,ease:"easeOut"}}>{activeView}</motion.div></AnimatePresence>
     </main>
   </div>;
