@@ -26,15 +26,16 @@ const publicClient = createPublicClient({ chain: baseSepolia, transport: http(rp
 
 async function transactionHistory() {
   try {
-    const logs = await publicClient.getLogs({
-      address: PUCUK_REGISTRY_ADDRESS,
-      fromBlock: 44_698_331n,
-      toBlock: "latest",
+    const logs = await publicClient.request({
+      method: "eth_getLogs",
+      params: [{
+        address: PUCUK_REGISTRY_ADDRESS,
+        fromBlock: `0x${44_698_331n.toString(16)}`,
+        toBlock: "latest",
+        topics: [null, PUCUK_DEMO_RECEIPT_ID],
+      }],
     });
-    const matching = logs.filter((log) =>
-      log.topics.some((topic) => topic?.toLowerCase() === PUCUK_DEMO_RECEIPT_ID.toLowerCase()),
-    );
-    return [...new Set(matching.map((log) => log.transactionHash))].filter(
+    return [...new Set(logs.map((log) => log.transactionHash))].filter(
       (hash): hash is Hash => Boolean(hash),
     );
   } catch (error) {
