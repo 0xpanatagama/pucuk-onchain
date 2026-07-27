@@ -9,6 +9,14 @@ const [wallet] = await viem.getWalletClients();
 const publicClient = await viem.getPublicClient();
 const registry = await viem.getContractAt("PucukReceiptRegistry", REGISTRY_ADDRESS);
 
+type SmokeReceipt = {
+  state: number;
+  paidAmountIdr: bigint;
+};
+
+const readReceipt = async () =>
+  (await registry.read.getReceipt([receiptId])) as SmokeReceipt;
+
 const owner = (await registry.read.owner()) as `0x${string}`;
 if (owner.toLowerCase() !== wallet.account.address.toLowerCase()) {
   throw new Error(
@@ -92,7 +100,7 @@ await confirm(
 );
 await waitFor(
   "created Draft receipt",
-  async () => (await registry.read.getReceipt([receiptId])).state === 0,
+  async () => (await readReceipt()).state === 0,
 );
 
 await confirm(
@@ -101,7 +109,7 @@ await confirm(
 );
 await waitFor(
   "AwaitingFarmer state",
-  async () => (await registry.read.getReceipt([receiptId])).state === 1,
+  async () => (await readReceipt()).state === 1,
 );
 
 await confirm(
@@ -110,7 +118,7 @@ await confirm(
 );
 await waitFor(
   "Registered state",
-  async () => (await registry.read.getReceipt([receiptId])).state === 2,
+  async () => (await readReceipt()).state === 2,
 );
 
 await confirm(
@@ -130,7 +138,7 @@ await confirm(
 );
 await waitFor(
   "Approved state",
-  async () => (await registry.read.getReceipt([receiptId])).state === 3,
+  async () => (await readReceipt()).state === 3,
 );
 
 await confirm(
@@ -142,10 +150,10 @@ await confirm(
 );
 await waitFor(
   "Paid state",
-  async () => (await registry.read.getReceipt([receiptId])).state === 5,
+  async () => (await readReceipt()).state === 5,
 );
 
-const recorded = await registry.read.getReceipt([receiptId]);
+const recorded = await readReceipt();
 if (recorded.state !== 5 || recorded.paidAmountIdr !== totalPayableIdr) {
   throw new Error(
     `Unexpected final state ${recorded.state}; paid ${recorded.paidAmountIdr}`,
