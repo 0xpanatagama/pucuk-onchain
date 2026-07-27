@@ -100,7 +100,27 @@ export default function PortalClient() {
   };
 
   const applySnapshot = useCallback((snapshot: ChainSnapshot) => {
-    setChain(snapshot);
+    let savedTransactions: ChainSnapshot["transactions"] = [];
+    try {
+      const saved = window.localStorage.getItem("pucuk-demo-transactions");
+      savedTransactions = saved ? JSON.parse(saved) as ChainSnapshot["transactions"] : [];
+    } catch {
+      savedTransactions = [];
+    }
+    const mergedTransactions = [
+      ...new Map(
+        [...savedTransactions, ...snapshot.transactions].map((transaction) => [
+          transaction.hash,
+          transaction,
+        ]),
+      ).values(),
+    ];
+    const mergedSnapshot = { ...snapshot, transactions: mergedTransactions };
+    setChain(mergedSnapshot);
+    window.localStorage.setItem(
+      "pucuk-demo-transactions",
+      JSON.stringify(mergedTransactions),
+    );
     setReceiptState(snapshot.state);
     setPaid(snapshot.state === "Paid");
     setDisputed(snapshot.state === "Disputed");

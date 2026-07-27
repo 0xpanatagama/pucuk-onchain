@@ -25,6 +25,36 @@ const rpcUrl =
 const publicClient = createPublicClient({ chain: baseSepolia, transport: http(rpcUrl) });
 
 async function transactionHistory() {
+  const fromEtherscan = async () => {
+    const apiKey = process.env.ETHERSCAN_API_KEY;
+    if (!apiKey) return [];
+    const query = new URLSearchParams({
+      chainid: "84532",
+      module: "logs",
+      action: "getLogs",
+      fromBlock: "44698331",
+      toBlock: "latest",
+      address: PUCUK_REGISTRY_ADDRESS,
+      topic1: PUCUK_DEMO_RECEIPT_ID,
+      page: "1",
+      offset: "100",
+      apikey: apiKey,
+    });
+    const response = await fetch(`https://api.etherscan.io/v2/api?${query}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return [];
+    const payload = (await response.json()) as {
+      status?: string;
+      result?: { transactionHash?: Hash }[] | string;
+    };
+    if (payload.status !== "1" || !Array.isArray(payload.result)) return [];
+    return [...new Set(payload.result.map((log) => log.transactionHash))].filter(
+      (hash): hash is Hash => Boolean(hash),
+    );
+  };
+
   try {
     const logs = await publicClient.request({
       method: "eth_getLogs",
@@ -35,12 +65,18 @@ async function transactionHistory() {
         topics: [null, PUCUK_DEMO_RECEIPT_ID],
       }],
     });
-    return [...new Set(logs.map((log) => log.transactionHash))].filter(
+    const hashes = [...new Set(logs.map((log) => log.transactionHash))].filter(
       (hash): hash is Hash => Boolean(hash),
     );
+    return hashes.length > 0 ? hashes : await fromEtherscan();
   } catch (error) {
-    console.warn("Receipt history lookup unavailable; returning current state only", error);
-    return [];
+    console.warn("RPC receipt history lookup unavailable; trying Etherscan", error);
+    try {
+      return await fromEtherscan();
+    } catch (fallbackError) {
+      console.warn("Etherscan receipt history lookup unavailable", fallbackError);
+      return [];
+    }
   }
 }
 
