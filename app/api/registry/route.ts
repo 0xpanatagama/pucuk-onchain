@@ -25,17 +25,22 @@ const rpcUrl =
 const publicClient = createPublicClient({ chain: baseSepolia, transport: http(rpcUrl) });
 
 async function transactionHistory() {
-  const logs = await publicClient.getLogs({
-    address: PUCUK_REGISTRY_ADDRESS,
-    fromBlock: 44_698_331n,
-    toBlock: "latest",
-  });
-  const matching = logs.filter((log) =>
-    log.topics.some((topic) => topic?.toLowerCase() === PUCUK_DEMO_RECEIPT_ID.toLowerCase()),
-  );
-  return [...new Set(matching.map((log) => log.transactionHash))].filter(
-    (hash): hash is Hash => Boolean(hash),
-  );
+  try {
+    const logs = await publicClient.getLogs({
+      address: PUCUK_REGISTRY_ADDRESS,
+      fromBlock: 44_698_331n,
+      toBlock: "latest",
+    });
+    const matching = logs.filter((log) =>
+      log.topics.some((topic) => topic?.toLowerCase() === PUCUK_DEMO_RECEIPT_ID.toLowerCase()),
+    );
+    return [...new Set(matching.map((log) => log.transactionHash))].filter(
+      (hash): hash is Hash => Boolean(hash),
+    );
+  } catch (error) {
+    console.warn("Receipt history lookup unavailable; returning current state only", error);
+    return [];
+  }
 }
 
 async function responseFor(
@@ -86,14 +91,19 @@ async function waitFor(check: () => Promise<boolean>) {
 }
 
 export async function GET() {
-  const code = await publicClient.getCode({ address: PUCUK_REGISTRY_ADDRESS });
-  if (!code) {
-    return NextResponse.json(
-      { connected: false, error: "Contract not found on Base Sepolia" },
-      { status: 503 },
-    );
+  try {
+    const code = await publicClient.getCode({ address: PUCUK_REGISTRY_ADDRESS });
+    if (!code) {
+      return NextResponse.json(
+        { connected: false, error: "Contract not found on Base Sepolia" },
+        { status: 503 },
+      );
+    }
+    return responseFor(await readReceipt());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Registry is unavailable";
+    return NextResponse.json({ connected: false, error: message }, { status: 503 });
   }
-  return responseFor(await readReceipt());
 }
 
 export async function POST(request: Request) {

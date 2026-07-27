@@ -51,6 +51,18 @@ const nav: Record<Role, { screen: Screen; label: string; icon: string; badge?: s
 const money = (value: number) => `Rp${new Intl.NumberFormat("id-ID").format(value)}`;
 const shortHash = (value: string) => value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
 
+async function readApiResponse<T extends { error?: string }>(response: Response) {
+  const body = await response.text();
+  if (!body) {
+    throw new Error(`Layanan registry gagal merespons (HTTP ${response.status})`);
+  }
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    throw new Error(`Layanan registry mengirim respons yang tidak valid (HTTP ${response.status})`);
+  }
+}
+
 function Icon({ name }: { name: string }) {
   const paths: Record<string, React.ReactNode> = {
     leaf: <><path d="M19 3C10 3 5 7.7 5 14c0 1.7.5 3.2 1.5 4.5"/><path d="M5 21c3.2-6.2 7.2-10 12-12"/></>,
@@ -98,7 +110,7 @@ export default function PortalClient() {
   const syncChain = useCallback(async () => {
     try {
       const response = await fetch("/api/registry", { cache: "no-store" });
-      const data = (await response.json()) as ChainSnapshot & { error?: string };
+      const data = await readApiResponse<ChainSnapshot & { error?: string }>(response);
       if (!response.ok) throw new Error(data.error || "Registry tidak dapat dibaca");
       applySnapshot(data);
     } catch (error) {
@@ -121,7 +133,7 @@ export default function PortalClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      const data = (await response.json()) as ChainSnapshot & { error?: string };
+      const data = await readApiResponse<ChainSnapshot & { error?: string }>(response);
       if (!response.ok) throw new Error(data.error || "Transaksi gagal");
       applySnapshot(data);
       flash(success);
