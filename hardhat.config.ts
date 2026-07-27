@@ -33,4 +33,9 @@ export default defineConfig({
       accounts: [configVariable("BASE_SEPOLIA_PRIVATE_KEY")],
     },
   },
+  verify: {
+    etherscan: {
+      apiKey: configVariable("ETHERSCAN_API_KEY"),
+    },
+  },
 });
