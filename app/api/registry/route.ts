@@ -24,10 +24,26 @@ const rpcUrl =
   process.env.BASE_SEPOLIA_RPC_URL ?? "https://base-sepolia-rpc.publicnode.com";
 const publicClient = createPublicClient({ chain: baseSepolia, transport: http(rpcUrl) });
 
-function responseFor(
+async function transactionHistory() {
+  const logs = await publicClient.getLogs({
+    address: PUCUK_REGISTRY_ADDRESS,
+    fromBlock: 44_698_331n,
+    toBlock: "latest",
+  });
+  const matching = logs.filter((log) =>
+    log.topics.some((topic) => topic?.toLowerCase() === PUCUK_DEMO_RECEIPT_ID.toLowerCase()),
+  );
+  return [...new Set(matching.map((log) => log.transactionHash))].filter(
+    (hash): hash is Hash => Boolean(hash),
+  );
+}
+
+async function responseFor(
   receipt: Awaited<ReturnType<typeof readReceipt>>,
   transactions: Hash[] = [],
 ) {
+  const history = await transactionHistory();
+  const allTransactions = [...new Set([...history, ...transactions])];
   return NextResponse.json({
     connected: true,
     exists: receipt !== null,
@@ -37,7 +53,7 @@ function responseFor(
     state: receipt ? receiptStates[receipt.state] : "Draft",
     paidAmountIdr: receipt?.paidAmountIdr.toString() ?? "0",
     totalPayableIdr: receipt?.totalPayableIdr.toString() ?? "95625",
-    transactions: transactions.map((hash) => ({
+    transactions: allTransactions.map((hash) => ({
       hash,
       url: `${PUCUK_EXPLORER}/tx/${hash}`,
     })),
