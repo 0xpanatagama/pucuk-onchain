@@ -9,7 +9,7 @@ const [wallet] = await viem.getWalletClients();
 const publicClient = await viem.getPublicClient();
 const registry = await viem.getContractAt("PucukReceiptRegistry", REGISTRY_ADDRESS);
 
-const owner = await registry.read.owner();
+const owner = (await registry.read.owner()) as `0x${string}`;
 if (owner.toLowerCase() !== wallet.account.address.toLowerCase()) {
   throw new Error(
     `Configured wallet ${wallet.account.address} is not the contract owner ${owner}`,
