@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 type Role = "Operator" | "Petani" | "Pabrik" | "Auditor";
 type Screen = "home" | "intake" | "receipts" | "payments" | "verify" | "disputes";
@@ -62,6 +63,7 @@ export default function PortalClient() {
   const [disputed, setDisputed] = useState(false);
   const [toast, setToast] = useState("");
   const [intakeStep, setIntakeStep] = useState(1);
+  const reduceMotion = useReducedMotion();
 
   const flash = (text: string) => {
     setToast(text);
@@ -77,9 +79,19 @@ export default function PortalClient() {
 
   const profile = profiles[session];
   const portalTitle = session === "Operator" ? "Portal Penerimaan" : session === "Petani" ? "Portal Petani" : session === "Pabrik" ? "Portal Pabrik" : "Portal Audit";
+  let activeView: React.ReactNode;
+  if (screen === "home" && session === "Operator") activeView = <OperatorHome onIntake={() => setScreen("intake")} onReceipt={() => setScreen("receipts")} />;
+  else if (screen === "home" && session === "Petani") activeView = <FarmerHome paid={paid} onReceipt={() => setScreen("receipts")} onDispute={() => setScreen("disputes")} />;
+  else if (screen === "home" && session === "Pabrik") activeView = <FactoryHome paid={paid} onPayments={() => setScreen("payments")} onReceipt={() => setScreen("receipts")} />;
+  else if (screen === "home" && session === "Auditor") activeView = <AuditorHome disputed={disputed} onVerify={() => setScreen("verify")} onDispute={() => setScreen("disputes")} />;
+  else if (screen === "intake" && session === "Operator") activeView = <Intake step={intakeStep} setStep={setIntakeStep} finish={() => { setScreen("receipts"); flash("Tanda terima berhasil dibuat"); }} />;
+  else if (screen === "receipts") activeView = <ReceiptView role={session} paid={paid} disputed={disputed} onPay={() => setScreen("payments")} onDispute={() => setScreen("disputes")} />;
+  else if (screen === "payments" && session === "Pabrik") activeView = <Payments paid={paid} onPay={() => { setPaid(true); flash("Pembayaran IDR berhasil dicatat"); }} />;
+  else if (screen === "verify" && session === "Auditor") activeView = <Verification />;
+  else activeView = <Disputes role={session} disputed={disputed} onSubmit={() => { setDisputed(true); flash(session === "Auditor" ? "Sengketa ditandai untuk penyelesaian" : "Pengajuan koreksi terkirim"); }} />;
 
   return <div className={`portal-shell role-${session.toLowerCase()}`}>
-    {toast && <div className="portal-toast"><Icon name="check" />{toast}</div>}
+    <AnimatePresence>{toast && <motion.div className="portal-toast" initial={{opacity:0,y:-14,scale:.96}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-10,scale:.98}}><Icon name="check" />{toast}</motion.div>}</AnimatePresence>
     <aside className="portal-sidebar">
       <button className="portal-logo" onClick={() => setScreen("home")}><i><Icon name="leaf" /></i><strong>Pucuk<span>Proof</span></strong></button>
       <div className="portal-identity"><span>{profile.initials}</span><div><small>ANDA MASUK KE</small><strong>{portalTitle}</strong><em>{profile.org}</em></div></div>
@@ -92,15 +104,7 @@ export default function PortalClient() {
     </aside>
     <main className="portal-main">
       <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="network-pill"><i/>Demo · Base Sepolia</div></header>
-      {screen === "home" && session === "Operator" && <OperatorHome onIntake={() => setScreen("intake")} onReceipt={() => setScreen("receipts")} />}
-      {screen === "home" && session === "Petani" && <FarmerHome paid={paid} onReceipt={() => setScreen("receipts")} onDispute={() => setScreen("disputes")} />}
-      {screen === "home" && session === "Pabrik" && <FactoryHome paid={paid} onPayments={() => setScreen("payments")} onReceipt={() => setScreen("receipts")} />}
-      {screen === "home" && session === "Auditor" && <AuditorHome disputed={disputed} onVerify={() => setScreen("verify")} onDispute={() => setScreen("disputes")} />}
-      {screen === "intake" && session === "Operator" && <Intake step={intakeStep} setStep={setIntakeStep} finish={() => { setScreen("receipts"); flash("Tanda terima berhasil dibuat"); }} />}
-      {screen === "receipts" && <ReceiptView role={session} paid={paid} disputed={disputed} onPay={() => setScreen("payments")} onDispute={() => setScreen("disputes")} />}
-      {screen === "payments" && session === "Pabrik" && <Payments paid={paid} onPay={() => { setPaid(true); flash("Pembayaran IDR berhasil dicatat"); }} />}
-      {screen === "verify" && session === "Auditor" && <Verification />}
-      {screen === "disputes" && <Disputes role={session} disputed={disputed} onSubmit={() => { setDisputed(true); flash(session === "Auditor" ? "Sengketa ditandai untuk penyelesaian" : "Pengajuan koreksi terkirim"); }} />}
+      <AnimatePresence mode="wait"><motion.div key={`${session}-${screen}`} initial={reduceMotion ? false : {opacity:0,y:10}} animate={{opacity:1,y:0}} exit={reduceMotion ? undefined : {opacity:0,y:-6}} transition={{duration:.2,ease:"easeOut"}}>{activeView}</motion.div></AnimatePresence>
     </main>
   </div>;
 }
@@ -116,9 +120,9 @@ function Login({ selected, setSelected, onLogin }: { selected: Role; setSelected
     </section>
     <section className="auth-form-wrap"><div className="auth-card">
       <p className="portal-kicker">DEMO AKSES</p><h2>Masuk ke portal Anda</h2><p>Pilih identitas untuk mencoba pengalaman tiap pengguna.</p>
-      <div className="identity-list">{(Object.keys(profiles) as Role[]).map((role) => <button key={role} className={selected === role ? "selected" : ""} onClick={() => setSelected(role)}>
+      <div className="identity-list">{(Object.keys(profiles) as Role[]).map((role) => <motion.button layout whileHover={{y:-2}} whileTap={{scale:.98}} key={role} className={selected === role ? "selected" : ""} onClick={() => setSelected(role)}>
         <span>{profiles[role].initials}</span><div><strong>{role}</strong><small>{profiles[role].description}</small></div>{selected === role && <Icon name="check"/>}
-      </button>)}</div>
+      </motion.button>)}</div>
       <form onSubmit={(event) => { event.preventDefault(); onLogin(); }}>
         <label>Email<input value={profile.email} readOnly/></label>
         <label>Kata sandi<input type="password" value="pucukproof" readOnly/></label>
@@ -134,7 +138,7 @@ function PageHead({ kicker, title, copy, action }: { kicker: string; title: stri
 }
 
 function Metric({ icon, label, value, note, tone = "green" }: { icon: string; label: string; value: string; note: string; tone?: string }) {
-  return <article className="portal-metric"><i className={tone}><Icon name={icon}/></i><div><small>{label}</small><strong>{value}</strong><p>{note}</p></div></article>;
+  return <motion.article className="portal-metric" whileHover={{y:-3,boxShadow:"0 12px 28px rgba(24,61,45,.08)"}} transition={{duration:.18}}><i className={tone}><Icon name={icon}/></i><div><small>{label}</small><strong>{value}</strong><p>{note}</p></div></motion.article>;
 }
 
 const weeks = ["6 Mei","13","20","27","3 Jun","10","17","24","1 Jul","8","15","22"];
@@ -149,7 +153,7 @@ function TrendChart({ title, subtitle, data, second, legend = ["Aktual"], suffix
   const all = second ? [...data, ...second] : data;
   const min = Math.min(...all) * .88, max = Math.max(...all) * 1.06;
   const points = (values: number[]) => values.map((value, index) => `${pad + index * ((width - pad * 2) / (values.length - 1))},${height - pad - ((value - min) / (max - min)) * (height - pad * 2)}`).join(" ");
-  return <section className="portal-card analytics-chart"><div className="chart-head"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="chart-legend">{legend.map((item, index) => <span key={item}><i className={index ? "secondary" : ""}/>{item}</span>)}</div></div><div className="line-wrap"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>{[.2,.4,.6,.8].map((line) => <line key={line} x1={pad} x2={width-pad} y1={height*line} y2={height*line} className="grid-line"/>)}{second && <polyline points={points(second)} className="trend-line secondary"/>}<polyline points={points(data)} className="trend-line"/>{data.map((value,index) => <circle key={index} cx={pad + index*((width-pad*2)/(data.length-1))} cy={height-pad-((value-min)/(max-min))*(height-pad*2)} r="3.5" className="trend-dot"><title>{weeks[index]}: {value}{suffix}</title></circle>)}</svg><div className="chart-axis">{weeks.map((week,index) => <span key={index}>{index % 2 === 0 ? week : ""}</span>)}</div></div></section>;
+  return <section className="portal-card analytics-chart"><div className="chart-head"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="chart-legend">{legend.map((item, index) => <span key={item}><i className={index ? "secondary" : ""}/>{item}</span>)}</div></div><div className="line-wrap"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>{[.2,.4,.6,.8].map((line) => <line key={line} x1={pad} x2={width-pad} y1={height*line} y2={height*line} className="grid-line"/>)}{second && <motion.polyline points={points(second)} className="trend-line secondary" initial={{pathLength:0,opacity:0}} animate={{pathLength:1,opacity:1}} transition={{duration:.8,ease:"easeOut"}}/>}<motion.polyline points={points(data)} className="trend-line" initial={{pathLength:0,opacity:0}} animate={{pathLength:1,opacity:1}} transition={{duration:.75,ease:"easeOut",delay:.08}}/>{data.map((value,index) => <circle key={index} cx={pad + index*((width-pad*2)/(data.length-1))} cy={height-pad-((value-min)/(max-min))*(height-pad*2)} r="3.5" className="trend-dot"><title>{weeks[index]}: {value}{suffix}</title></circle>)}</svg><div className="chart-axis">{weeks.map((week,index) => <span key={index}>{index % 2 === 0 ? week : ""}</span>)}</div></div></section>;
 }
 
 function RankedBars({ title, subtitle, rows }: { title: string; subtitle: string; rows: { label: string; value: number; display: string; tone?: string }[] }) {
