@@ -1,11 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 type Role = "Operator" | "Petani" | "Pabrik" | "Auditor";
 type Screen = "home" | "intake" | "receipts" | "payments" | "verify" | "disputes";
 type ReceiptState = "Draft" | "AwaitingFarmer" | "Registered" | "Approved" | "PartiallyPaid" | "Paid" | "Disputed" | "Superseded";
+type ChainSnapshot = {
+  connected: boolean;
+  exists: boolean;
+  receiptId: string;
+  contractAddress: string;
+  explorerUrl: string;
+  state: ReceiptState;
+  paidAmountIdr: string;
+  totalPayableIdr: string;
+  transactions: { hash: string; url: string }[];
+};
 
 const profiles: Record<Role, { name: string; email: string; org: string; initials: string; description: string }> = {
   Operator: { name: "Nadia Anwar", email: "nadia@pucuk.demo", org: "Titik Koleksi Cisarua", initials: "NA", description: "Catat penerimaan dan pemeriksaan daun" },
@@ -65,11 +76,63 @@ export default function PortalClient() {
   const [toast, setToast] = useState("");
   const [intakeStep, setIntakeStep] = useState(1);
   const [receiptState, setReceiptState] = useState<ReceiptState>("AwaitingFarmer");
+  const [chain, setChain] = useState<ChainSnapshot | null>(null);
+  const [chainBusy, setChainBusy] = useState(false);
+  const [chainError, setChainError] = useState("");
   const reduceMotion = useReducedMotion();
 
   const flash = (text: string) => {
     setToast(text);
     window.setTimeout(() => setToast(""), 2200);
+  };
+
+  const applySnapshot = useCallback((snapshot: ChainSnapshot) => {
+    setChain(snapshot);
+    setReceiptState(snapshot.state);
+    setPaid(snapshot.state === "Paid");
+    setDisputed(snapshot.state === "Disputed");
+    setChainError("");
+  }, []);
+
+  const syncChain = useCallback(async () => {
+    try {
+      const response = await fetch("/api/registry", { cache: "no-store" });
+      const data = (await response.json()) as ChainSnapshot & { error?: string };
+      if (!response.ok) throw new Error(data.error || "Registry tidak dapat dibaca");
+      applySnapshot(data);
+    } catch (error) {
+      setChainError(error instanceof Error ? error.message : "Registry tidak dapat dibaca");
+    }
+  }, [applySnapshot]);
+
+  useEffect(() => {
+    void syncChain();
+  }, [syncChain]);
+
+  const runChainAction = async (action: string, success: string) => {
+    if (chainBusy) return false;
+    setChainBusy(true);
+    setChainError("");
+    flash("Mengirim transaksi ke Base Sepolia…");
+    try {
+      const response = await fetch("/api/registry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = (await response.json()) as ChainSnapshot & { error?: string };
+      if (!response.ok) throw new Error(data.error || "Transaksi gagal");
+      applySnapshot(data);
+      flash(success);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Transaksi gagal";
+      setChainError(message);
+      flash("Transaksi belum berhasil. Coba lagi.");
+      return false;
+    } finally {
+      setChainBusy(false);
+    }
   };
 
   if (!session) {
@@ -83,14 +146,14 @@ export default function PortalClient() {
   const portalTitle = session === "Operator" ? "Portal Penerimaan" : session === "Petani" ? "Portal Petani" : session === "Pabrik" ? "Portal Pabrik" : "Portal Audit";
   let activeView: React.ReactNode;
   if (screen === "home" && session === "Operator") activeView = <OperatorHome onIntake={() => setScreen("intake")} onReceipt={() => setScreen("receipts")} />;
-  else if (screen === "home" && session === "Petani") activeView = <FarmerHome paid={paid} state={receiptState} onAgree={() => { setReceiptState("Registered"); flash("Tanda terima disetujui dan sedang didaftarkan"); }} onReject={() => { setReceiptState("Draft"); flash("Tanda terima dikembalikan kepada operator"); }} onReceipt={() => setScreen("receipts")} onDispute={() => setScreen("disputes")} />;
-  else if (screen === "home" && session === "Pabrik") activeView = <FactoryHome paid={paid} state={receiptState} onApprove={() => { setReceiptState("Approved"); flash("Kewajiban pembayaran telah disetujui"); }} onPayments={() => setScreen("payments")} onReceipt={() => setScreen("receipts")} />;
+  else if (screen === "home" && session === "Petani") activeView = <FarmerHome paid={paid} state={receiptState} onAgree={() => { void runChainAction("farmerAgree", "Persetujuan petani tercatat di Base Sepolia"); }} onReject={() => { void runChainAction("farmerReject", "Tanda terima dikembalikan kepada operator"); }} onReceipt={() => setScreen("receipts")} onDispute={() => setScreen("disputes")} />;
+  else if (screen === "home" && session === "Pabrik") activeView = <FactoryHome paid={paid} state={receiptState} onApprove={() => { void runChainAction("approve", "Kewajiban pabrik tercatat di Base Sepolia"); }} onPayments={() => setScreen("payments")} onReceipt={() => setScreen("receipts")} />;
   else if (screen === "home" && session === "Auditor") activeView = <AuditorHome disputed={disputed} onVerify={() => setScreen("verify")} onDispute={() => setScreen("disputes")} />;
-  else if (screen === "intake" && session === "Operator") activeView = <Intake step={intakeStep} setStep={setIntakeStep} finish={() => { setReceiptState("AwaitingFarmer"); setScreen("receipts"); flash("Menunggu konfirmasi petani"); }} />;
+  else if (screen === "intake" && session === "Operator") activeView = <Intake step={intakeStep} setStep={setIntakeStep} finish={() => { void runChainAction("create", "Tanda terima dibuat dan menunggu petani").then((ok) => { if (ok) setScreen("receipts"); }); }} />;
   else if (screen === "receipts") activeView = <ReceiptView role={session} state={receiptState} paid={paid} disputed={disputed} onPay={() => setScreen("payments")} onDispute={() => setScreen("disputes")} />;
-  else if (screen === "payments" && session === "Pabrik") activeView = <Payments paid={paid} onPay={() => { setPaid(true); setReceiptState("Paid"); flash("Pembayaran IDR berhasil dicatat"); }} />;
+  else if (screen === "payments" && session === "Pabrik") activeView = <Payments paid={paid} onPay={() => { void runChainAction("pay", "Bukti pembayaran IDR tercatat di Base Sepolia"); }} />;
   else if (screen === "verify" && session === "Auditor") activeView = <Verification />;
-  else activeView = <Disputes role={session} disputed={disputed} onSubmit={() => { setDisputed(true); setReceiptState("Disputed"); flash(session === "Auditor" ? "Sengketa ditandai untuk penyelesaian" : "Pengajuan koreksi terkirim"); }} />;
+  else activeView = <Disputes role={session} disputed={disputed} onSubmit={() => { void runChainAction("dispute", session === "Auditor" ? "Sengketa ditandai untuk penyelesaian" : "Pengajuan koreksi tercatat di Base Sepolia"); }} />;
 
   return <div className={`portal-shell role-${session.toLowerCase()}`}>
     <AnimatePresence>{toast && <motion.div className="portal-toast" initial={{opacity:0,y:-14,scale:.96}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-10,scale:.98}}><Icon name="check" />{toast}</motion.div>}</AnimatePresence>
@@ -105,7 +168,8 @@ export default function PortalClient() {
       <button className="portal-logout" onClick={() => setSession(null)}><Icon name="logout" />Keluar & ganti akun</button>
     </aside>
     <main className="portal-main">
-      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><div className="network-pill"><i/>Demo · Base Sepolia</div><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
+      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Live · Base Sepolia"}</a><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
+      {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `PP-2026-000042 · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
       <AnimatePresence mode="wait"><motion.div key={`${session}-${screen}`} initial={reduceMotion ? false : {opacity:0,y:10}} animate={{opacity:1,y:0}} exit={reduceMotion ? undefined : {opacity:0,y:-6}} transition={{duration:.2,ease:"easeOut"}}>{activeView}</motion.div></AnimatePresence>
     </main>
   </div>;

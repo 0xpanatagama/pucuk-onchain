@@ -1,6 +1,6 @@
 import { network } from "hardhat";
 
-const { viem } = await network.connect();
+const { viem } = await network.getOrCreate();
 const [deployer] = await viem.getWalletClients();
 const publicClient = await viem.getPublicClient();
 

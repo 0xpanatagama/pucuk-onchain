@@ -11,7 +11,9 @@
     "build:sites": "vinext build",
     "contracts:compile": "hardhat compile",
     "contracts:deploy:base-sepolia": "hardhat run scripts/deploy-registry.ts --network baseSepolia --build-profile production",
+    "contracts:smoke:base-sepolia": "node --env-file=.env ./node_modules/hardhat/dist/src/cli.js run scripts/smoke-test-base-sepolia.ts --network baseSepolia --build-profile production",
     "contracts:test": "hardhat test",
+    "contracts:verify:base-sepolia": "node --env-file=.env ./node_modules/hardhat/dist/src/cli.js run scripts/verify-registry.ts --network baseSepolia --build-profile production",
     "start": "next start",
     "typecheck": "tsc --noEmit"
   },
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
     "@nomicfoundation/hardhat-node-test-runner": "^3.0.17",
+    "@nomicfoundation/hardhat-verify": "3.0.21",
     "@nomicfoundation/hardhat-viem": "^3.0.9",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",

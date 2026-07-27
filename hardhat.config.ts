@@ -1,9 +1,10 @@
 import hardhatViem from "@nomicfoundation/hardhat-viem";
 import hardhatNodeTestRunner from "@nomicfoundation/hardhat-node-test-runner";
+import hardhatVerify from "@nomicfoundation/hardhat-verify";
 import { configVariable, defineConfig } from "hardhat/config";
 
 export default defineConfig({
-  plugins: [hardhatViem, hardhatNodeTestRunner],
+  plugins: [hardhatViem, hardhatNodeTestRunner, hardhatVerify],
   solidity: {
     profiles: {
       default: {

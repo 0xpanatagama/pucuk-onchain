@@ -36,6 +36,8 @@ is used:
 ```text
 BASE_SEPOLIA_RPC_URL=
 BASE_SEPOLIA_PRIVATE_KEY=
+NEXT_PUBLIC_PUCUK_REGISTRY_ADDRESS=
+NEXT_PUBLIC_CHAIN_ID=84532
 ```
 
 Never commit a private key or `.env` file. The contract does not execute
@@ -52,6 +54,19 @@ Current Base Sepolia deployment:
 - Registry: `0x18708aE53414044F7651D7aA4982494bcb2E21b2`
 - Chain ID: `84532`
 - Deployment record: `deployments/base-sepolia.json`
+- Verified source: `https://sourcify.dev/server/repo-ui/84532/0x18708aE53414044F7651D7aA4982494bcb2E21b2`
+
+Run the live lifecycle smoke test or re-submit source verification with:
+
+```bash
+npm run contracts:smoke:base-sepolia
+npm run contracts:verify:base-sepolia
+```
+
+The web demo uses one fixed, idempotent receipt and a server-only burner signer.
+The API permits only defined lifecycle transitions; it cannot submit arbitrary
+contract calls. Replace this demo signer with authenticated organizational
+wallets before any production or mainnet deployment.
 
 Mobile-first prototype for shared fresh-tea-leaf receipts: intake, manual quality
 assessment, integer-IDR pricing, farmer confirmation, public verification,
@@ -76,13 +91,13 @@ npm start
 
 ## Deploy to Vercel
 
-This is a standard Next.js application and needs no custom Vercel configuration.
+This is a standard Next.js application and needs no custom build configuration.
 
 1. Import this GitHub repository in Vercel.
 2. Keep the detected framework as **Next.js**.
 3. Keep the root directory as the repository root.
-4. Deploy.
+4. Add the four Base Sepolia variables listed above to Production and Preview.
+5. Deploy.
 
-No production secrets are required for the current seeded prototype. Future
-Privy, Supabase, Base RPC, registry, and relayer credentials should be added
-through Vercel Environment Variables and never committed.
+`BASE_SEPOLIA_PRIVATE_KEY` must remain server-only. Never prefix it with
+`NEXT_PUBLIC_`, expose it in browser code, or commit it to Git.
