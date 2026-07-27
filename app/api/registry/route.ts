@@ -53,10 +53,22 @@ async function transactionHistory(receiptId: Hash) {
     if (!response.ok) return [];
     const payload = (await response.json()) as {
       status?: string;
-      result?: { transactionHash?: Hash }[] | string;
+      result?: {
+        transactionHash?: Hash;
+        blockNumber?: string;
+        logIndex?: string;
+      }[] | string;
     };
     if (payload.status !== "1" || !Array.isArray(payload.result)) return [];
-    return [...new Set(payload.result.map((log) => log.transactionHash))].filter(
+    const ordered = payload.result.sort((left, right) => {
+      const leftBlock = BigInt(left.blockNumber || "0");
+      const rightBlock = BigInt(right.blockNumber || "0");
+      if (leftBlock !== rightBlock) return leftBlock < rightBlock ? -1 : 1;
+      const leftIndex = BigInt(left.logIndex || "0");
+      const rightIndex = BigInt(right.logIndex || "0");
+      return leftIndex === rightIndex ? 0 : leftIndex < rightIndex ? -1 : 1;
+    });
+    return [...new Set(ordered.map((log) => log.transactionHash))].filter(
       (hash): hash is Hash => Boolean(hash),
     );
   };
@@ -71,7 +83,17 @@ async function transactionHistory(receiptId: Hash) {
         topics: [null, receiptId],
       }],
     });
-    const hashes = [...new Set(logs.map((log) => log.transactionHash))].filter(
+    const ordered = logs.sort((left, right) => {
+      const leftBlock = left.blockNumber ?? 0n;
+      const rightBlock = right.blockNumber ?? 0n;
+      if (leftBlock !== rightBlock) {
+        return leftBlock < rightBlock ? -1 : 1;
+      }
+      const leftIndex = left.logIndex ?? 0;
+      const rightIndex = right.logIndex ?? 0;
+      return leftIndex === rightIndex ? 0 : leftIndex < rightIndex ? -1 : 1;
+    });
+    const hashes = [...new Set(ordered.map((log) => log.transactionHash))].filter(
       (hash): hash is Hash => Boolean(hash),
     );
     return hashes.length > 0 ? hashes : await fromEtherscan();
@@ -93,7 +115,10 @@ async function responseFor(
 ) {
   const receiptId = pucukDemoReceiptId(demoId);
   const history = await transactionHistory(receiptId);
-  const allTransactions = [...new Set([...history, ...transactions])];
+  const combined = [...history, ...transactions];
+  const allTransactions = combined.filter(
+    (hash, index) => combined.lastIndexOf(hash) === index,
+  );
   return NextResponse.json({
     connected: true,
     exists: receipt !== null,
@@ -311,6 +336,16 @@ export async function POST(request: Request) {
     }
 
     receipt = await readReceipt(receiptId);
+    if (hashes.length === 0) {
+      return NextResponse.json(
+        {
+          error: `Tidak ada transaksi baru. Status receipt saat ini: ${
+            receipt ? receiptStates[receipt.state] : "Draft"
+          }. Mulai demo baru untuk mengulang alur.`,
+        },
+        { status: 409 },
+      );
+    }
     return responseFor(receipt, hashes, demoId);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown registry error";
