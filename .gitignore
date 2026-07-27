@@ -7,3 +7,7 @@ dist
 .vercel
 .wrangler
 *.tsbuildinfo
+artifacts
+cache
+.hardhat-local
+pnpm-workspace.yaml
