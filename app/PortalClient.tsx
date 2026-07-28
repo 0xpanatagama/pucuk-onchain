@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { localizePortal, type PortalLanguage } from "../lib/portalI18n";
 
 type Role = "Operator" | "Petani" | "Pabrik" | "Auditor";
 type Screen = "home" | "intake" | "receipts" | "payments" | "verify" | "disputes";
@@ -83,6 +84,7 @@ function Icon({ name }: { name: string }) {
 }
 
 export default function PortalClient() {
+  const [language, setLanguage] = useState<PortalLanguage>("id");
   const [session, setSession] = useState<Role | null>(null);
   const [selected, setSelected] = useState<Role>("Operator");
   const [screen, setScreen] = useState<Screen>("home");
@@ -96,6 +98,27 @@ export default function PortalClient() {
   const [chainError, setChainError] = useState("");
   const [demoId, setDemoId] = useState(DEFAULT_DEMO_ID);
   const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem("pucuk-language");
+    if (saved === "en" || saved === "id") setLanguage(saved);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("pucuk-language", language);
+    let frame = 0;
+    const applyLanguage = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => localizePortal(document.documentElement, language));
+    };
+    applyLanguage();
+    const observer = new MutationObserver(applyLanguage);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+    };
+  }, [language]);
 
   const flash = (text: string) => {
     setToast(text);
@@ -194,7 +217,7 @@ export default function PortalClient() {
   };
 
   if (!session) {
-    return <Login selected={selected} setSelected={setSelected} onLogin={() => {
+    return <Login selected={selected} setSelected={setSelected} language={language} setLanguage={setLanguage} onLogin={() => {
       setSession(selected);
       setScreen("home");
     }} />;
@@ -229,16 +252,24 @@ export default function PortalClient() {
       <button className="portal-logout" onClick={() => setSession(null)}><Icon name="logout" />Keluar & ganti akun</button>
     </aside>
     <main className="portal-main">
-      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a>{session === "Operator" && <button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button>}<button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
+      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a>{session === "Operator" && <button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button>}<button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
       {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `Demo ${demoId.slice(-12)} · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
       <AnimatePresence mode="wait"><motion.div key={`${session}-${screen}`} initial={reduceMotion ? false : {opacity:0,y:10}} animate={{opacity:1,y:0}} exit={reduceMotion ? undefined : {opacity:0,y:-6}} transition={{duration:.2,ease:"easeOut"}}>{activeView}</motion.div></AnimatePresence>
     </main>
   </div>;
 }
 
-function Login({ selected, setSelected, onLogin }: { selected: Role; setSelected: (role: Role) => void; onLogin: () => void }) {
+function LanguageSwitch({ language, setLanguage }: { language: PortalLanguage; setLanguage: (language: PortalLanguage) => void }) {
+  return <div className="language-switch" role="group" aria-label="Pilih bahasa">
+    <button className={language === "id" ? "active" : ""} onClick={() => setLanguage("id")} aria-pressed={language === "id"}>ID</button>
+    <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")} aria-pressed={language === "en"}>EN</button>
+  </div>;
+}
+
+function Login({ selected, setSelected, language, setLanguage, onLogin }: { selected: Role; setSelected: (role: Role) => void; language: PortalLanguage; setLanguage: (language: PortalLanguage) => void; onLogin: () => void }) {
   const profile = profiles[selected];
   return <main className="auth-page">
+    <div className="auth-language"><LanguageSwitch language={language} setLanguage={setLanguage}/></div>
     <section className="auth-story">
       <div className="auth-logo"><i><Icon name="leaf" /></i><strong>Pucuk</strong></div>
       <div><p className="portal-kicker">CATAT · SEPAKATI · BAYAR</p><h1>Setiap daun tercatat.<br/>Setiap pembayaran jelas.</h1><p>Pucuk mencatat hasil timbang, kualitas, dan harga—lalu membantu semua pihak memantau pembayaran dan menelusuri buktinya.</p></div>
