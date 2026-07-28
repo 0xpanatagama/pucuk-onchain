@@ -84,7 +84,7 @@ function Icon({ name }: { name: string }) {
 }
 
 export default function PortalClient() {
-  const [language, setLanguage] = useState<PortalLanguage>("id");
+  const [language, setLanguage] = useState<PortalLanguage>("en");
   const [session, setSession] = useState<Role | null>(null);
   const [selected, setSelected] = useState<Role>("Operator");
   const [screen, setScreen] = useState<Screen>("home");
@@ -100,12 +100,12 @@ export default function PortalClient() {
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("pucuk-language");
+    const saved = window.localStorage.getItem("pucuk-language-v2");
     if (saved === "en" || saved === "id") setLanguage(saved);
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("pucuk-language", language);
+    window.localStorage.setItem("pucuk-language-v2", language);
     let frame = 0;
     const applyLanguage = () => {
       window.cancelAnimationFrame(frame);
@@ -261,8 +261,8 @@ export default function PortalClient() {
 
 function LanguageSwitch({ language, setLanguage }: { language: PortalLanguage; setLanguage: (language: PortalLanguage) => void }) {
   return <div className="language-switch" role="group" aria-label="Pilih bahasa">
-    <button className={language === "id" ? "active" : ""} onClick={() => setLanguage("id")} aria-pressed={language === "id"}>ID</button>
     <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")} aria-pressed={language === "en"}>EN</button>
+    <button className={language === "id" ? "active" : ""} onClick={() => setLanguage("id")} aria-pressed={language === "id"}>ID</button>
   </div>;
 }
 
