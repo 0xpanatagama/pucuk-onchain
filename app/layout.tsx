@@ -3,8 +3,8 @@ import "./globals.css";
 import "./portal.css";
 
 export const metadata: Metadata = {
-  title: "Pucuk · Transaksi Daun Teh",
-  description: "Satu transaksi daun teh yang jelas, terverifikasi, dan dipercaya.",
+  title: "Pucuk · Tea Leaf Transactions",
+  description: "Clear, verifiable, and trusted tea-leaf transactions for every participant.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
