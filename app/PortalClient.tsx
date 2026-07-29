@@ -8,6 +8,7 @@ type Role = "Operator" | "Petani" | "Pabrik" | "Auditor";
 type Screen = "home" | "intake" | "receipts" | "payments" | "verify" | "disputes";
 type ReceiptState = "Draft" | "AwaitingFarmer" | "Registered" | "Approved" | "PartiallyPaid" | "Paid" | "Disputed" | "Superseded";
 type DashboardFilters = { scope: string; range: "7d" | "30d" | "12w" | "season" };
+type NextAction = { role: Role; screen: Screen; title: string; copy: string; cta: string };
 type ChainSnapshot = {
   connected: boolean;
   exists: boolean;
@@ -66,6 +67,64 @@ const scopeFactor = (scope: string, options: string[]) => [1, .46, .32, .22][Mat
 const demoFactor = (filters: DashboardFilters, options: string[]) => periodFactor[filters.range] * scopeFactor(filters.scope, options);
 const scaled = (value: number, factor: number) => Math.max(0, Math.round(value * factor));
 const scaledSeries = (values: number[], factor: number, offset = 0) => values.map((value, index) => Number(Math.max(0, value * factor + offset * Math.sin(index * 1.7)).toFixed(2)));
+const nextActionFor = (state: ReceiptState): NextAction => ({
+  Draft: {
+    role: "Operator",
+    screen: "intake",
+    title: "Tindakan Operator diperlukan",
+    copy: "Tanda terima ini masih berupa draf. Lanjut sebagai Operator untuk mencatat detail pengiriman dan mengirimkannya kepada Petani.",
+    cta: "Lanjut sebagai Operator",
+  },
+  AwaitingFarmer: {
+    role: "Petani",
+    screen: "home",
+    title: "Konfirmasi Petani diperlukan",
+    copy: "Operator telah membuat tanda terima ini. Lanjut sebagai Petani untuk meninjau dan mengonfirmasi pengiriman yang tercatat.",
+    cta: "Lanjut sebagai Petani",
+  },
+  Registered: {
+    role: "Pabrik",
+    screen: "home",
+    title: "Persetujuan Pabrik diperlukan",
+    copy: "Petani telah mengonfirmasi tanda terima. Lanjut sebagai Pabrik untuk meninjau dan menyetujui kewajiban pembayaran.",
+    cta: "Lanjut sebagai Pabrik",
+  },
+  Approved: {
+    role: "Pabrik",
+    screen: "payments",
+    title: "Pencatatan pembayaran diperlukan",
+    copy: "Pabrik telah menyetujui kewajiban. Lanjut ke Pembayaran untuk mencatat pembayaran IDR yang telah dilakukan.",
+    cta: "Catat pembayaran",
+  },
+  PartiallyPaid: {
+    role: "Pabrik",
+    screen: "payments",
+    title: "Sisa pembayaran diperlukan",
+    copy: "Pembayaran sebagian telah dicatat. Lanjut sebagai Pabrik untuk mencatat sisa pembayaran IDR.",
+    cta: "Catat sisa pembayaran",
+  },
+  Paid: {
+    role: "Auditor",
+    screen: "verify",
+    title: "Verifikasi audit tersedia",
+    copy: "Pembayaran telah selesai. Lanjut sebagai Auditor untuk memverifikasi bukti transaksi dan catatan ketertelusuran.",
+    cta: "Lanjut sebagai Auditor",
+  },
+  Disputed: {
+    role: "Auditor",
+    screen: "disputes",
+    title: "Tinjauan sengketa diperlukan",
+    copy: "Pengajuan koreksi sedang terbuka. Lanjut sebagai Auditor untuk membandingkan bukti dan menyelesaikan sengketa.",
+    cta: "Tinjau sengketa",
+  },
+  Superseded: {
+    role: "Auditor",
+    screen: "verify",
+    title: "Tanda terima pengganti siap",
+    copy: "Tanda terima pengganti telah diterbitkan. Lanjut sebagai Auditor untuk memverifikasi riwayat transaksi yang terhubung.",
+    cta: "Verifikasi pengganti",
+  },
+} satisfies Record<ReceiptState, NextAction>)[state];
 
 async function readApiResponse<T extends { error?: string }>(response: Response) {
   const body = await response.text();
@@ -248,19 +307,25 @@ export default function PortalClient() {
 
   const profile = profiles[session];
   const portalTitle = session === "Operator" ? "Portal Penerimaan" : session === "Petani" ? "Portal Petani" : session === "Pabrik" ? "Portal Pabrik" : "Portal Audit";
+  const nextAction = nextActionFor(receiptState);
+  const continueWorkflow = () => {
+    setSession(nextAction.role);
+    setScreen(nextAction.screen);
+    if (nextAction.screen === "intake") setIntakeStep(1);
+  };
   const latestProof = chain?.transactions.at(-1);
   const proofUrl = latestProof?.url;
   const proofHash = latestProof?.hash || chain?.receiptId || "";
   let activeView: React.ReactNode;
   if (screen === "home" && session === "Operator") activeView = <OperatorHome onIntake={() => setScreen("intake")} onReceipt={() => setScreen("receipts")} />;
-  else if (screen === "home" && session === "Petani") activeView = <FarmerHome paid={paid} state={receiptState} proofUrl={proofUrl} onAgree={() => { void runChainAction("farmerAgree", "Persetujuan petani berhasil dicatat"); }} onReject={() => { void runChainAction("farmerReject", "Tanda terima dikembalikan kepada operator"); }} onReceipt={() => setScreen("receipts")} onDispute={() => setScreen("disputes")} />;
-  else if (screen === "home" && session === "Pabrik") activeView = <FactoryHome paid={paid} state={receiptState} proofUrl={proofUrl} onApprove={() => { void runChainAction("approve", "Kewajiban pabrik berhasil dicatat"); }} onPayments={() => setScreen("payments")} onReceipt={() => setScreen("receipts")} />;
+  else if (screen === "home" && session === "Petani") activeView = <FarmerHome paid={paid} state={receiptState} proofUrl={proofUrl} onAgree={() => { void runChainAction("farmerAgree", "Tanda terima dikonfirmasi. Lanjut sebagai Pabrik untuk meninjau dan menyetujui kewajiban."); }} onReject={() => { void runChainAction("farmerReject", "Tanda terima dikembalikan kepada Operator. Lanjut sebagai Operator untuk memperbaiki catatan."); }} onReceipt={() => setScreen("receipts")} onDispute={() => setScreen("disputes")} />;
+  else if (screen === "home" && session === "Pabrik") activeView = <FactoryHome paid={paid} state={receiptState} proofUrl={proofUrl} onApprove={() => { void runChainAction("approve", "Kewajiban disetujui. Lanjut ke Pembayaran untuk mencatat pembayaran IDR."); }} onPayments={() => setScreen("payments")} onReceipt={() => setScreen("receipts")} />;
   else if (screen === "home" && session === "Auditor") activeView = <AuditorHome disputed={disputed} onVerify={() => setScreen("verify")} onDispute={() => setScreen("disputes")} />;
-  else if (screen === "intake" && session === "Operator") activeView = <Intake step={intakeStep} setStep={setIntakeStep} finish={() => { void runChainAction("create", "Tanda terima dibuat dan menunggu petani").then((ok) => { if (ok) setScreen("receipts"); }); }} />;
+  else if (screen === "intake" && session === "Operator") activeView = <Intake step={intakeStep} setStep={setIntakeStep} finish={() => { void runChainAction("create", "Tanda terima dibuat. Lanjut sebagai Petani untuk meninjau dan mengonfirmasi pengiriman.").then((ok) => { if (ok) setScreen("receipts"); }); }} />;
   else if (screen === "receipts") activeView = <ReceiptView role={session} state={receiptState} paid={paid} disputed={disputed} proofUrl={proofUrl} proofHash={proofHash} onPay={() => setScreen("payments")} onDispute={() => setScreen("disputes")} />;
-  else if (screen === "payments" && session === "Pabrik") activeView = <Payments paid={paid} proofUrl={proofUrl} onPay={() => { void runChainAction("pay", "Bukti pembayaran IDR berhasil dicatat"); }} />;
+  else if (screen === "payments" && session === "Pabrik") activeView = <Payments paid={paid} proofUrl={proofUrl} onPay={() => { void runChainAction("pay", "Pembayaran dicatat. Lanjut sebagai Auditor untuk memverifikasi bukti transaksi."); }} />;
   else if (screen === "verify" && session === "Auditor") activeView = <Verification proofUrl={proofUrl} proofHash={proofHash} />;
-  else activeView = <Disputes role={session} disputed={disputed} onSubmit={() => { void runChainAction("dispute", session === "Auditor" ? "Sengketa ditandai untuk penyelesaian" : "Pengajuan koreksi berhasil dicatat"); }} />;
+  else activeView = <Disputes role={session} disputed={disputed} onSubmit={() => { void runChainAction("dispute", session === "Auditor" ? "Sengketa ditandai untuk penyelesaian." : "Pengajuan koreksi dicatat. Lanjut sebagai Auditor untuk meninjau sengketa."); }} />;
 
   return <div className={`portal-shell role-${session.toLowerCase()}`}>
     <AnimatePresence>{toast && <motion.div className="portal-toast" initial={{opacity:0,y:-14,scale:.96}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-10,scale:.98}}><Icon name="check" />{toast}</motion.div>}</AnimatePresence>
@@ -277,6 +342,7 @@ export default function PortalClient() {
     <main className="portal-main">
       <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a><button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
       {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `Demo ${demoId.slice(-12)} · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
+      <NextActionGuide action={nextAction} currentRole={session} onContinue={continueWorkflow}/>
       <AnimatePresence mode="wait"><motion.div key={`${session}-${screen}`} initial={reduceMotion ? false : {opacity:0,y:10}} animate={{opacity:1,y:0}} exit={reduceMotion ? undefined : {opacity:0,y:-6}} transition={{duration:.2,ease:"easeOut"}}>{activeView}</motion.div></AnimatePresence>
     </main>
   </div>;
@@ -287,6 +353,15 @@ function LanguageSwitch({ language, setLanguage }: { language: PortalLanguage; s
     <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")} aria-pressed={language === "en"}>EN</button>
     <button className={language === "id" ? "active" : ""} onClick={() => setLanguage("id")} aria-pressed={language === "id"}>ID</button>
   </div>;
+}
+
+function NextActionGuide({ action, currentRole, onContinue }: { action: NextAction; currentRole: Role; onContinue: () => void }) {
+  const isCurrentRole = action.role === currentRole;
+  return <section className="next-action-guide" aria-label="Tindakan berikutnya">
+    <i><Icon name="arrow"/></i>
+    <div><small>TINDAKAN BERIKUTNYA · {action.role}</small><strong>{action.title}</strong><p>{action.copy}</p></div>
+    <button onClick={onContinue}>{isCurrentRole ? "Lihat langkah berikutnya" : action.cta}<Icon name="arrow"/></button>
+  </section>;
 }
 
 function Login({ selected, setSelected, language, setLanguage, onLogin }: { selected: Role; setSelected: (role: Role) => void; language: PortalLanguage; setLanguage: (language: PortalLanguage) => void; onLogin: () => void }) {
