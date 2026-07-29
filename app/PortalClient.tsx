@@ -199,7 +199,9 @@ export default function PortalClient() {
   const startNewDemo = () => {
     if (chainBusy) return;
     const confirmed = window.confirm(
-      "Mulai transaksi demo baru? Catatan lama tetap tersimpan sebagai riwayat transaksi.",
+      language === "en"
+        ? "Start a new demo transaction? Previous records will remain in the transaction history."
+        : "Mulai transaksi demo baru? Catatan lama tetap tersimpan sebagai riwayat transaksi.",
     );
     if (!confirmed) return;
     const nextDemoId = `demo-${Date.now()}-${window.crypto.randomUUID().slice(0, 8)}`;
@@ -211,9 +213,17 @@ export default function PortalClient() {
     setPaid(false);
     setDisputed(false);
     setIntakeStep(1);
-    setScreen("intake");
+    setScreen(session === "Operator" ? "intake" : "home");
     void syncChain(nextDemoId);
-    flash("Demo baru siap. Lengkapi penerimaan untuk membuat transaksi.");
+    flash(
+      language === "en"
+        ? session === "Operator"
+          ? "New demo ready. Complete the intake to create a transaction."
+          : "New demo ready. Sign in as Operator to create the intake transaction."
+        : session === "Operator"
+          ? "Demo baru siap. Lengkapi penerimaan untuk membuat transaksi."
+          : "Demo baru siap. Masuk sebagai Operator untuk membuat transaksi penerimaan.",
+    );
   };
 
   if (!session) {
@@ -252,7 +262,7 @@ export default function PortalClient() {
       <button className="portal-logout" onClick={() => setSession(null)}><Icon name="logout" />Keluar & ganti akun</button>
     </aside>
     <main className="portal-main">
-      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a>{session === "Operator" && <button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button>}<button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
+      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a><button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
       {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `Demo ${demoId.slice(-12)} · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
       <AnimatePresence mode="wait"><motion.div key={`${session}-${screen}`} initial={reduceMotion ? false : {opacity:0,y:10}} animate={{opacity:1,y:0}} exit={reduceMotion ? undefined : {opacity:0,y:-6}} transition={{duration:.2,ease:"easeOut"}}>{activeView}</motion.div></AnimatePresence>
     </main>
