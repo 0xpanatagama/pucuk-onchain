@@ -8,7 +8,7 @@ type Role = "Operator" | "Petani" | "Pabrik" | "Auditor";
 type Screen = "home" | "intake" | "receipts" | "payments" | "verify" | "disputes";
 type ReceiptState = "Draft" | "AwaitingFarmer" | "Registered" | "Approved" | "PartiallyPaid" | "Paid" | "Disputed" | "Superseded";
 type DashboardFilters = { scope: string; range: "7d" | "30d" | "12w" | "season" };
-type NextAction = { role: Role; screen: Screen; title: string; copy: string; cta: string };
+type NextAction = { role: Role; screen: Screen; targetSelector: string; title: string; copy: string; cta: string };
 type ChainSnapshot = {
   connected: boolean;
   exists: boolean;
@@ -71,6 +71,7 @@ const nextActionFor = (state: ReceiptState): NextAction => ({
   Draft: {
     role: "Operator",
     screen: "intake",
+    targetSelector: ".intake-card",
     title: "Tindakan Operator diperlukan",
     copy: "Tanda terima ini masih berupa draf. Lanjut sebagai Operator untuk mencatat detail pengiriman dan mengirimkannya kepada Petani.",
     cta: "Lanjut sebagai Operator",
@@ -78,6 +79,7 @@ const nextActionFor = (state: ReceiptState): NextAction => ({
   AwaitingFarmer: {
     role: "Petani",
     screen: "home",
+    targetSelector: ".confirmation-card",
     title: "Konfirmasi Petani diperlukan",
     copy: "Operator telah membuat tanda terima ini. Lanjut sebagai Petani untuk meninjau dan mengonfirmasi pengiriman yang tercatat.",
     cta: "Lanjut sebagai Petani",
@@ -85,6 +87,7 @@ const nextActionFor = (state: ReceiptState): NextAction => ({
   Registered: {
     role: "Pabrik",
     screen: "home",
+    targetSelector: ".liability-card",
     title: "Persetujuan Pabrik diperlukan",
     copy: "Petani telah mengonfirmasi tanda terima. Lanjut sebagai Pabrik untuk meninjau dan menyetujui kewajiban pembayaran.",
     cta: "Lanjut sebagai Pabrik",
@@ -92,20 +95,23 @@ const nextActionFor = (state: ReceiptState): NextAction => ({
   Approved: {
     role: "Pabrik",
     screen: "payments",
+    targetSelector: ".payment-table",
     title: "Pencatatan pembayaran diperlukan",
     copy: "Pabrik telah menyetujui kewajiban. Lanjut ke Pembayaran untuk mencatat pembayaran IDR yang telah dilakukan.",
-    cta: "Catat pembayaran",
+    cta: "Lanjut sebagai Pabrik",
   },
   PartiallyPaid: {
     role: "Pabrik",
     screen: "payments",
+    targetSelector: ".payment-table",
     title: "Sisa pembayaran diperlukan",
     copy: "Pembayaran sebagian telah dicatat. Lanjut sebagai Pabrik untuk mencatat sisa pembayaran IDR.",
-    cta: "Catat sisa pembayaran",
+    cta: "Lanjut sebagai Pabrik",
   },
   Paid: {
     role: "Auditor",
     screen: "verify",
+    targetSelector: ".verify-result",
     title: "Verifikasi audit tersedia",
     copy: "Pembayaran telah selesai. Lanjut sebagai Auditor untuk memverifikasi bukti transaksi dan catatan ketertelusuran.",
     cta: "Lanjut sebagai Auditor",
@@ -113,16 +119,18 @@ const nextActionFor = (state: ReceiptState): NextAction => ({
   Disputed: {
     role: "Auditor",
     screen: "disputes",
+    targetSelector: ".case-card",
     title: "Tinjauan sengketa diperlukan",
     copy: "Pengajuan koreksi sedang terbuka. Lanjut sebagai Auditor untuk membandingkan bukti dan menyelesaikan sengketa.",
-    cta: "Tinjau sengketa",
+    cta: "Lanjut sebagai Auditor",
   },
   Superseded: {
     role: "Auditor",
     screen: "verify",
+    targetSelector: ".verify-result",
     title: "Tanda terima pengganti siap",
     copy: "Tanda terima pengganti telah diterbitkan. Lanjut sebagai Auditor untuk memverifikasi riwayat transaksi yang terhubung.",
-    cta: "Verifikasi pengganti",
+    cta: "Lanjut sebagai Auditor",
   },
 } satisfies Record<ReceiptState, NextAction>)[state];
 
@@ -163,6 +171,7 @@ export default function PortalClient() {
   const [paid, setPaid] = useState(false);
   const [disputed, setDisputed] = useState(false);
   const [toast, setToast] = useState("");
+  const [workflowFocus, setWorkflowFocus] = useState<{ targetSelector: string; nonce: number } | null>(null);
   const [intakeStep, setIntakeStep] = useState(1);
   const [receiptState, setReceiptState] = useState<ReceiptState>("AwaitingFarmer");
   const [chain, setChain] = useState<ChainSnapshot | null>(null);
@@ -298,6 +307,20 @@ export default function PortalClient() {
     );
   };
 
+  useEffect(() => {
+    if (!workflowFocus) return;
+    const timer = window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(workflowFocus.targetSelector);
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.remove("workflow-action-focus");
+      void target.getBoundingClientRect();
+      target.classList.add("workflow-action-focus");
+      target.querySelector<HTMLElement>("button.portal-primary, button:not([disabled])")?.focus({ preventScroll: true });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [workflowFocus]);
+
   if (!session) {
     return <Login selected={selected} setSelected={setSelected} language={language} setLanguage={setLanguage} onLogin={() => {
       setSession(selected);
@@ -312,6 +335,7 @@ export default function PortalClient() {
     setSession(nextAction.role);
     setScreen(nextAction.screen);
     if (nextAction.screen === "intake") setIntakeStep(1);
+    setWorkflowFocus({ targetSelector: nextAction.targetSelector, nonce: Date.now() });
   };
   const latestProof = chain?.transactions.at(-1);
   const proofUrl = latestProof?.url;
@@ -342,7 +366,7 @@ export default function PortalClient() {
     <main className="portal-main">
       <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a><button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
       {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `Demo ${demoId.slice(-12)} · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
-      <NextActionGuide action={nextAction} currentRole={session} onContinue={continueWorkflow}/>
+      <NextActionGuide action={nextAction} onContinue={continueWorkflow}/>
       <AnimatePresence mode="wait"><motion.div key={`${session}-${screen}`} initial={reduceMotion ? false : {opacity:0,y:10}} animate={{opacity:1,y:0}} exit={reduceMotion ? undefined : {opacity:0,y:-6}} transition={{duration:.2,ease:"easeOut"}}>{activeView}</motion.div></AnimatePresence>
     </main>
   </div>;
@@ -355,12 +379,11 @@ function LanguageSwitch({ language, setLanguage }: { language: PortalLanguage; s
   </div>;
 }
 
-function NextActionGuide({ action, currentRole, onContinue }: { action: NextAction; currentRole: Role; onContinue: () => void }) {
-  const isCurrentRole = action.role === currentRole;
+function NextActionGuide({ action, onContinue }: { action: NextAction; onContinue: () => void }) {
   return <section className="next-action-guide" aria-label="Tindakan berikutnya">
     <i><Icon name="arrow"/></i>
     <div><small>TINDAKAN BERIKUTNYA · {action.role}</small><strong>{action.title}</strong><p>{action.copy}</p></div>
-    <button onClick={onContinue}>{isCurrentRole ? "Lihat langkah berikutnya" : action.cta}<Icon name="arrow"/></button>
+    <button onClick={onContinue}>{action.cta}<Icon name="arrow"/></button>
   </section>;
 }
 
