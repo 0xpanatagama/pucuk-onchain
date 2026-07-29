@@ -430,7 +430,8 @@ function AnalyticsControls({ scope, options, filters, onChange }: { scope: strin
 }
 
 function TrendChart({ title, subtitle, data, second, legend = ["Aktual"], suffix = "" }: { title: string; subtitle: string; data: number[]; second?: number[]; legend?: string[]; suffix?: string }) {
-  const width = 720, height = 210, pad = 18;
+  const width = 720, height = 238;
+  const plot = { left: 78, right: 22, top: 24, bottom: 198 };
   const reduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const periodVariant = [...subtitle].reduce((total, character) => total + character.charCodeAt(0), 0) % 9;
@@ -442,9 +443,9 @@ function TrendChart({ title, subtitle, data, second, legend = ["Aktual"], suffix
   const all = plottedSecond ? [...plottedData, ...plottedSecond] : plottedData;
   const min = Math.min(...all) * .88, max = Math.max(...all) * 1.06;
   const spread = Math.max(max - min, 1);
-  const xFor = (index: number) => pad + index * ((width - pad * 2) / (plottedData.length - 1));
-  const yFor = (value: number) => height - pad - ((value - min) / spread) * (height - pad * 2);
-  const points = (values: number[]) => values.map((value, index) => `${pad + index * ((width - pad * 2) / (values.length - 1))},${height - pad - ((value - min) / spread) * (height - pad * 2)}`).join(" ");
+  const xFor = (index: number) => plot.left + index * ((width - plot.left - plot.right) / (plottedData.length - 1));
+  const yFor = (value: number) => plot.bottom - ((value - min) / spread) * (plot.bottom - plot.top);
+  const points = (values: number[]) => values.map((value, index) => `${xFor(index)},${yFor(value)}`).join(" ");
   const dates = ["06/05/2026","13/05/2026","20/05/2026","27/05/2026","03/06/2026","10/06/2026","17/06/2026","24/06/2026","01/07/2026","08/07/2026","15/07/2026","22/07/2026"];
   const formatValue = (value: number) => `${Number.isInteger(value) ? value : value.toFixed(1)}${suffix}`;
   const selectNearest = (event: React.PointerEvent<SVGSVGElement>) => {
@@ -458,17 +459,20 @@ function TrendChart({ title, subtitle, data, second, legend = ["Aktual"], suffix
   const tooltipLeft = `clamp(var(--tooltip-half), ${activeX / width * 100}%, calc(100% - var(--tooltip-half)))`;
   const tooltipBelow = activeY < 64;
   const yTicks = [max, min + spread / 2, min];
+  const unitLabel = suffix.trim() === "menit" ? "Menit" : suffix.trim() === "kg" ? "kg" : suffix.trim() === "jt" ? "Juta Rp" : "Jumlah";
+  const formatAxisValue = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1);
+  const visibleXTicks = new Set([0,2,4,6,8,10,11]);
   return <section className="portal-card analytics-chart"><div className="chart-head"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="chart-legend">{legend.map((item, index) => <span key={item}><i className={index ? "secondary" : ""}/>{item}</span>)}</div></div><div className="line-wrap interactive-chart">
-    <div className="chart-y-axis" aria-hidden="true">{yTicks.map((tick, index) => <span key={index} style={{top:`${8 + index * 42}%`}}>{formatValue(tick)}</span>)}</div>
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. Geser atau ketuk grafik untuk melihat nilai.`} tabIndex={0} onPointerMove={selectNearest} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); selectNearest(event); }} onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)} onPointerLeave={(event) => { if (event.pointerType === "mouse") setActiveIndex(null); }} onKeyDown={(event) => { if (event.key === "ArrowRight") setActiveIndex(Math.min(plottedData.length - 1, (activeIndex ?? -1) + 1)); if (event.key === "ArrowLeft") setActiveIndex(Math.max(0, (activeIndex ?? 1) - 1)); }}>
-      {[.2,.4,.6,.8].map((line) => <line key={line} x1={pad} x2={width-pad} y1={height*line} y2={height*line} className="grid-line"/>)}
+      <text x={plot.left - 12} y={plot.top - 10} textAnchor="end" className="axis-unit">{unitLabel}</text>
+      {yTicks.map((tick) => <g key={tick}><line x1={plot.left} x2={width-plot.right} y1={yFor(tick)} y2={yFor(tick)} className="grid-line"/><text x={plot.left-12} y={yFor(tick)+4} textAnchor="end" className="axis-tick">{formatAxisValue(tick)}</text></g>)}
       {plottedSecond && <motion.polyline key={`second-${subtitle}`} points={points(plottedSecond)} className="trend-line secondary" initial={reduceMotion ? {opacity:0} : {pathLength:0,opacity:.35}} animate={reduceMotion ? {opacity:1} : {pathLength:1,opacity:1}} transition={{duration:reduceMotion ? .2 : .8,ease:"easeOut"}}/>}
       <motion.polyline key={`primary-${subtitle}-${data.join(",")}`} points={points(plottedData)} className="trend-line" initial={reduceMotion ? {opacity:0} : {pathLength:0,opacity:.35}} animate={reduceMotion ? {opacity:1} : {pathLength:1,opacity:1}} transition={{duration:reduceMotion ? .2 : .8,ease:"easeOut",delay:reduceMotion ? 0 : .08}}/>
       {plottedData.map((value,index) => <motion.circle key={`${subtitle}-${index}`} cx={xFor(index)} cy={yFor(value)} r="3.5" className="trend-dot" initial={{opacity:.2,scale:reduceMotion ? 1 : .7}} animate={{opacity:1,scale:1}} transition={{duration:reduceMotion ? .15 : .25,delay:reduceMotion ? 0 : .35+index*.035}}><title>{dates[index]}: {formatValue(value)}</title></motion.circle>)}
-      <AnimatePresence>{activeIndex !== null && <motion.g initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.16}}><motion.line className="active-guide" x1={activeX} x2={activeX} y1={pad} y2={height-pad}/><motion.circle className="active-pulse" cx={activeX} cy={activeY} r="9" animate={reduceMotion ? {opacity:.2} : {r:[7,11,7],opacity:[.28,.08,.28]}} transition={reduceMotion ? {duration:.1} : {duration:1.8,repeat:Infinity,ease:"easeInOut"}}/><motion.circle className="active-dot" r="5" animate={{cx:activeX,cy:activeY}} transition={reduceMotion ? {duration:0} : {type:"spring",stiffness:420,damping:32}}/></motion.g>}</AnimatePresence>
+      <AnimatePresence>{activeIndex !== null && <motion.g initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.16}}><motion.line className="active-guide" x1={activeX} x2={activeX} y1={plot.top} y2={plot.bottom}/><motion.circle className="active-pulse" cx={activeX} cy={activeY} r="9" animate={reduceMotion ? {opacity:.2} : {r:[7,11,7],opacity:[.28,.08,.28]}} transition={reduceMotion ? {duration:.1} : {duration:1.8,repeat:Infinity,ease:"easeInOut"}}/><motion.circle className="active-dot" r="5" animate={{cx:activeX,cy:activeY}} transition={reduceMotion ? {duration:0} : {type:"spring",stiffness:420,damping:32}}/></motion.g>}</AnimatePresence>
+      {weeks.map((week,index) => visibleXTicks.has(index) && <text key={index} x={xFor(index)} y={225} textAnchor={index === 0 ? "start" : index === weeks.length - 1 ? "end" : "middle"} className={`axis-tick x-tick ${[0,4,8,11].includes(index) ? "x-primary" : "x-secondary"} ${[0,11].includes(index) ? "x-edge" : ""} ${index === 6 ? "x-center" : ""}`}>{week}</text>)}
     </svg>
     <AnimatePresence>{activeIndex !== null && activeValue !== null && <motion.div className={`chart-tooltip-anchor ${tooltipBelow ? "below" : ""}`} style={{left:tooltipLeft,top:`${activeY/height*100}%`}} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:reduceMotion ? .1 : .16}}><motion.div className="chart-tooltip" initial={{y:reduceMotion ? 0 : tooltipBelow ? -4 : 4}} animate={{y:0}} transition={{duration:reduceMotion ? 0 : .16}}><small>{dates[activeIndex]}</small><strong>{Number.isInteger(activeValue) ? activeValue : activeValue.toFixed(1)} <em>{suffix.trim()}</em></strong></motion.div></motion.div>}</AnimatePresence>
-    <div className="chart-axis">{weeks.map((week,index) => <span key={index}>{index % 2 === 0 ? week : ""}</span>)}</div>
   </div></section>;
 }
 
