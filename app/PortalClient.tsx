@@ -66,7 +66,10 @@ const periodLabel: Record<DashboardFilters["range"], string> = { "7d": "7 hari",
 const scopeFactor = (scope: string, options: string[]) => [1, .46, .32, .22][Math.max(0, options.indexOf(scope))] ?? 1;
 const demoFactor = (filters: DashboardFilters, options: string[]) => periodFactor[filters.range] * scopeFactor(filters.scope, options);
 const scaled = (value: number, factor: number) => Math.max(0, Math.round(value * factor));
-const scaledSeries = (values: number[], factor: number, offset = 0) => values.map((value, index) => Number(Math.max(0, value * factor + offset * Math.sin(index * 1.7)).toFixed(2)));
+const scaledSeries = (values: number[], factor: number, offset = 0) => values.map((value, index) => {
+  const scopeShape = 1 + (factor - 1) * .14 * Math.sin((index + 1) * 1.23);
+  return Number(Math.max(0, value * factor * scopeShape + offset * Math.sin(index * 1.7)).toFixed(2));
+});
 const nextActionFor = (state: ReceiptState): NextAction => ({
   Draft: {
     role: "Operator",
@@ -428,10 +431,16 @@ function AnalyticsControls({ scope, options, filters, onChange }: { scope: strin
 
 function TrendChart({ title, subtitle, data, second, legend = ["Aktual"], suffix = "" }: { title: string; subtitle: string; data: number[]; second?: number[]; legend?: string[]; suffix?: string }) {
   const width = 720, height = 210, pad = 18;
-  const all = second ? [...data, ...second] : data;
+  const periodVariant = [...subtitle].reduce((total, character) => total + character.charCodeAt(0), 0) % 9;
+  const adaptPeriod = (values: number[]) => values.map((value, index) =>
+    Number((value * (1 + .045 * Math.sin((index + 1) * (.48 + periodVariant * .09)))).toFixed(2)),
+  );
+  const plottedData = adaptPeriod(data);
+  const plottedSecond = second ? adaptPeriod(second) : undefined;
+  const all = plottedSecond ? [...plottedData, ...plottedSecond] : plottedData;
   const min = Math.min(...all) * .88, max = Math.max(...all) * 1.06;
   const points = (values: number[]) => values.map((value, index) => `${pad + index * ((width - pad * 2) / (values.length - 1))},${height - pad - ((value - min) / (max - min)) * (height - pad * 2)}`).join(" ");
-  return <section className="portal-card analytics-chart"><div className="chart-head"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="chart-legend">{legend.map((item, index) => <span key={item}><i className={index ? "secondary" : ""}/>{item}</span>)}</div></div><div className="line-wrap"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>{[.2,.4,.6,.8].map((line) => <line key={line} x1={pad} x2={width-pad} y1={height*line} y2={height*line} className="grid-line"/>)}{second && <motion.polyline points={points(second)} className="trend-line secondary" initial={{pathLength:0,opacity:0}} animate={{pathLength:1,opacity:1}} transition={{duration:.8,ease:"easeOut"}}/>}<motion.polyline points={points(data)} className="trend-line" initial={{pathLength:0,opacity:0}} animate={{pathLength:1,opacity:1}} transition={{duration:.75,ease:"easeOut",delay:.08}}/>{data.map((value,index) => <circle key={index} cx={pad + index*((width-pad*2)/(data.length-1))} cy={height-pad-((value-min)/(max-min))*(height-pad*2)} r="3.5" className="trend-dot"><title>{weeks[index]}: {value}{suffix}</title></circle>)}</svg><div className="chart-axis">{weeks.map((week,index) => <span key={index}>{index % 2 === 0 ? week : ""}</span>)}</div></div></section>;
+  return <section className="portal-card analytics-chart"><div className="chart-head"><div><h2>{title}</h2><p>{subtitle}</p></div><div className="chart-legend">{legend.map((item, index) => <span key={item}><i className={index ? "secondary" : ""}/>{item}</span>)}</div></div><div className="line-wrap"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>{[.2,.4,.6,.8].map((line) => <line key={line} x1={pad} x2={width-pad} y1={height*line} y2={height*line} className="grid-line"/>)}{plottedSecond && <motion.polyline key={`second-${subtitle}`} points={points(plottedSecond)} className="trend-line secondary" initial={{pathLength:0,opacity:0}} animate={{pathLength:1,opacity:1}} transition={{duration:.8,ease:"easeOut"}}/>}<motion.polyline key={`primary-${subtitle}-${data.join(",")}`} points={points(plottedData)} className="trend-line" initial={{pathLength:0,opacity:0}} animate={{pathLength:1,opacity:1}} transition={{duration:.75,ease:"easeOut",delay:.08}}/>{plottedData.map((value,index) => <circle key={index} cx={pad + index*((width-pad*2)/(plottedData.length-1))} cy={height-pad-((value-min)/(max-min))*(height-pad*2)} r="3.5" className="trend-dot"><title>{weeks[index]}: {value}{suffix}</title></circle>)}</svg><div className="chart-axis">{weeks.map((week,index) => <span key={index}>{index % 2 === 0 ? week : ""}</span>)}</div></div></section>;
 }
 
 function RankedBars({ title, subtitle, rows }: { title: string; subtitle: string; rows: { label: string; value: number; display: string; tone?: string }[] }) {
