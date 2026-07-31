@@ -31,7 +31,7 @@ const english: Record<string, string> = {
   "Nov": "Nov",
   "Des": "Dec",
   "menit": "minutes",
-  "CATAT SEPAKATI BAYAR": "RECORD AGREE PAY",
+  "CATAT · SEPAKATI · BAYAR": "RECORD · AGREE · PAY",
   "Setiap daun tercatat.": "Every leaf recorded.",
   "Setiap pembayaran jelas.": "Every payment made clear.",
   "Pucuk mencatat hasil timbang, kualitas, dan harga, sehingga semua pihak dapat memantau pembayaran dan menelusuri buktinya.": "Pucuk records weight, quality, and price, helping every party track payments and trace the evidence.",
