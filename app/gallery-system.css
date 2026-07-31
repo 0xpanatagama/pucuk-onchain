@@ -52,11 +52,11 @@ body{background:var(--gallery-paper);color:var(--gallery-ink)}
 .auth-story{min-height:calc(100vh - 24px);border-radius:26px;padding:50px clamp(38px,5vw,76px);background:linear-gradient(150deg,#103b2b,#1c674a)}.auth-story:after{border-color:rgba(200,240,90,.18);box-shadow:0 0 0 70px rgba(200,240,90,.04),0 0 0 140px rgba(200,240,90,.025)}.auth-logo i{border-radius:50%;background:var(--gallery-acid)}.auth-story h1{font-size:clamp(48px,5vw,76px);font-weight:700;line-height:.94;max-width:650px}.auth-form-wrap{position:relative;grid-template-columns:minmax(0,610px);grid-template-rows:auto auto;align-content:center;justify-content:center;gap:14px;padding:32px}.auth-form-wrap .auth-language{position:static;justify-self:end}.auth-card{width:100%;padding:38px}.auth-card h2{font-size:36px}.identity-list{gap:11px}.identity-list button{border-radius:15px;padding:13px;background:rgba(255,255,255,.62)}.identity-list button>span,.auth-selected>span{border-radius:50%;background:var(--gallery-mint)}.identity-list button.selected{border-color:rgba(18,63,46,.35);background:rgba(223,242,207,.58)}
 
 /* Homepage cohesion: one shared type, spacing, radius, and component scale. */
-.auth-page{--auth-panel-radius:28px;--auth-control-radius:16px;--auth-space:clamp(34px,4vw,58px);grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding:18px}
+.auth-page{--auth-panel-radius:28px;--auth-control-radius:16px;--auth-space:clamp(34px,4vw,58px);grid-template-columns:minmax(0,35fr) minmax(0,65fr);gap:18px;padding:18px}
 .auth-story,.auth-card{border-radius:var(--auth-panel-radius)}
 .auth-story{min-height:calc(100vh - 36px);padding:var(--auth-space);box-shadow:var(--gallery-shadow)}
 .auth-logo{gap:14px}.auth-logo i{width:46px;height:46px}.auth-logo strong{font-size:28px;letter-spacing:-.035em}
-.auth-story h1{max-width:590px;margin:18px 0 22px;font-size:clamp(52px,4.25vw,66px);line-height:.98;letter-spacing:-.045em}
+.auth-story h1{max-width:590px;margin:18px 0 22px;font-size:clamp(46px,3.65vw,60px);line-height:.98;letter-spacing:-.045em}
 .auth-story>div>p:not(.portal-kicker){max-width:540px;font-size:17px;line-height:1.55;color:#d4e4dd}
 .auth-story .portal-kicker,.auth-card .portal-kicker{font-size:11px;letter-spacing:.2em}
 .auth-story .portal-kicker{gap:8px;letter-spacing:.11em;color:#c7ddd3}.auth-story .portal-kicker:before{width:5px;height:5px;box-shadow:none}
