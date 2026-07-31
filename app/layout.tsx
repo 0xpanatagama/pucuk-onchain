@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./portal.css";
+import "./gallery-system.css";
 
 export const metadata: Metadata = {
   title: "Pucuk · Tea Leaf Transactions",
