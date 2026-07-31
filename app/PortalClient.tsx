@@ -189,6 +189,7 @@ export default function PortalClient() {
   const [actionError, setActionError] = useState<ActionError>(null);
   const [txPhase, setTxPhase] = useState<TxPhase>("idle");
   const [demoId, setDemoId] = useState(DEFAULT_DEMO_ID);
+  const [headerScrolled, setHeaderScrolled] = useState(false);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
@@ -369,6 +370,13 @@ export default function PortalClient() {
     setTxPhase((phase) => phase === "failed" ? "idle" : phase);
   }, [session, screen]);
 
+  useEffect(() => {
+    const updateHeader = () => setHeaderScrolled(window.scrollY > 10);
+    updateHeader();
+    window.addEventListener("scroll", updateHeader, { passive: true });
+    return () => window.removeEventListener("scroll", updateHeader);
+  }, []);
+
   if (!session) {
     return <Login selected={selected} setSelected={setSelected} language={language} setLanguage={setLanguage} onLogin={() => {
       setSession(selected);
@@ -422,7 +430,7 @@ export default function PortalClient() {
       <button className="portal-logout" onClick={() => setSession(null)}><Icon name="logout" />Keluar & ganti akun</button>
     </aside>
     <main className="portal-main">
-      <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a><button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
+      <header className={`portal-header ${headerScrolled ? "scrolled" : ""}`}><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a><button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
       {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `Demo ${demoId.slice(-12)} · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
       {visibleBanner && <NextActionGuide action={visibleBanner.action} title={visibleBanner.title} copy={visibleBanner.copy} complete={Boolean(visibleCompletion)} showContinue={Boolean(visibleCompletion && visibleBanner.action.role !== session)} onContinue={() => continueWorkflow(visibleBanner.action)}/>}
       {actionError && screen !== "payments" && <div className="action-error role-scoped"><Icon name="alert"/><span><b>Action failed for {activeReceiptLabel}</b>{actionError.message}</span></div>}
@@ -449,14 +457,13 @@ function NextActionGuide({ action, title, copy, complete, showContinue, onContin
 function Login({ selected, setSelected, language, setLanguage, onLogin }: { selected: Role; setSelected: (role: Role) => void; language: PortalLanguage; setLanguage: (language: PortalLanguage) => void; onLogin: () => void }) {
   const profile = profiles[selected];
   return <main className="auth-page">
-    <div className="auth-language"><LanguageSwitch language={language} setLanguage={setLanguage}/></div>
     <section className="auth-story">
       <div className="auth-logo"><i><Icon name="leaf" /></i><strong>Pucuk</strong></div>
       <div><p className="portal-kicker">CATAT · SEPAKATI · BAYAR</p><h1>Setiap daun tercatat.<br/>Setiap pembayaran jelas.</h1><p>Pucuk mencatat hasil timbang, kualitas, dan harga—lalu membantu semua pihak memantau pembayaran dan menelusuri buktinya.</p></div>
       <div className="auth-proof"><p><Icon name="check"/><span><strong>Transaksi tanpa tebak-tebakan</strong><small>Lihat berat, kualitas, harga, dan status pembayaran.</small></span></p><p><Icon name="shield"/><span><strong>Bukti siap ditelusuri</strong><small>Setiap perubahan tersimpan tanpa menghapus catatan awal.</small></span></p></div>
       <small>Demo testnet · Tidak ada pembayaran kripto</small>
     </section>
-    <section className="auth-form-wrap"><div className="auth-card">
+    <section className="auth-form-wrap"><div className="auth-language"><LanguageSwitch language={language} setLanguage={setLanguage}/></div><div className="auth-card">
       <p className="portal-kicker">DEMO AKSES</p><h2>Masuk ke portal Anda</h2><p>Pilih identitas untuk mencoba pengalaman tiap pengguna.</p>
       <div className="identity-list">{(Object.keys(profiles) as Role[]).map((role) => <motion.button layout whileHover={{y:-2}} whileTap={{scale:.98}} key={role} className={selected === role ? "selected" : ""} onClick={() => setSelected(role)}>
         <span>{profiles[role].initials}</span><div><strong>{role}</strong><small>{profiles[role].description}</small></div>{selected === role && <Icon name="check"/>}
