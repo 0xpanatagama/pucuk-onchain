@@ -172,6 +172,7 @@ function Icon({ name }: { name: string }) {
 
 export default function PortalClient() {
   const [language, setLanguage] = useState<PortalLanguage>("en");
+  const [entryStep, setEntryStep] = useState<"landing" | "login">("landing");
   const [session, setSession] = useState<Role | null>(null);
   const [selected, setSelected] = useState<Role>("Operator");
   const [screen, setScreen] = useState<Screen>("home");
@@ -384,7 +385,8 @@ export default function PortalClient() {
   }, []);
 
   if (!session) {
-    return <Login selected={selected} setSelected={setSelected} language={language} setLanguage={setLanguage} onLogin={() => {
+    if (entryStep === "landing") return <Landing language={language} setLanguage={setLanguage} onEnter={() => setEntryStep("login")} />;
+    return <Login selected={selected} setSelected={setSelected} language={language} setLanguage={setLanguage} onBack={() => setEntryStep("landing")} onLogin={() => {
       setSession(selected);
       setScreen("home");
     }} />;
@@ -452,6 +454,23 @@ function LanguageSwitch({ language, setLanguage }: { language: PortalLanguage; s
   </div>;
 }
 
+function Landing({ language, setLanguage, onEnter }: { language: PortalLanguage; setLanguage: (language: PortalLanguage) => void; onEnter: () => void }) {
+  return <main className="pucuk-landing">
+    <div className="landing-landscape" aria-hidden="true"/>
+    <header className="landing-header">
+      <div className="landing-logo"><i><Icon name="leaf"/></i><strong>Pucuk</strong></div>
+      <LanguageSwitch language={language} setLanguage={setLanguage}/>
+    </header>
+    <motion.section className="landing-copy" initial={{opacity:0}} animate={{opacity:1}} transition={{duration:.55,ease:"easeOut"}}>
+      <p className="landing-kicker">CATAT · SEPAKATI · BAYAR</p>
+      <h1><span>Setiap daun tercatat.</span><span>Setiap pembayaran jelas.</span></h1>
+      <p>Pucuk menyatukan catatan berat, kualitas, harga, pembayaran, dan bukti transaksi dalam satu alur yang dapat dipercaya semua pihak.</p>
+      <button onClick={onEnter}>Masuk ke portal <Icon name="arrow"/></button>
+    </motion.section>
+    <footer className="landing-footer"><span>Demo transaksi daun teh</span><span>Pembayaran dalam IDR</span></footer>
+  </main>;
+}
+
 function NextActionGuide({ action, title, copy, complete, showContinue, onContinue }: { action: NextAction; title: string; copy: string; complete: boolean; showContinue: boolean; onContinue: () => void }) {
   return <section className={`next-action-guide ${complete ? "complete" : ""}`} aria-label={complete ? "Tindakan selesai" : "Tindakan berikutnya"}>
     <i><Icon name={complete ? "check" : "arrow"}/></i>
@@ -460,17 +479,12 @@ function NextActionGuide({ action, title, copy, complete, showContinue, onContin
   </section>;
 }
 
-function Login({ selected, setSelected, language, setLanguage, onLogin }: { selected: Role; setSelected: (role: Role) => void; language: PortalLanguage; setLanguage: (language: PortalLanguage) => void; onLogin: () => void }) {
+function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }: { selected: Role; setSelected: (role: Role) => void; language: PortalLanguage; setLanguage: (language: PortalLanguage) => void; onBack: () => void; onLogin: () => void }) {
   const profile = profiles[selected];
-  return <main className="auth-page">
-    <section className="auth-story">
-      <div className="auth-logo"><i><Icon name="leaf" /></i><strong>Pucuk</strong></div>
-      <div><p className="portal-kicker">CATAT · SEPAKATI · BAYAR</p><h1>Setiap daun tercatat.<br/>Setiap pembayaran jelas.</h1><p>Pucuk mencatat hasil timbang, kualitas, dan harga, sehingga semua pihak dapat memantau pembayaran dan menelusuri buktinya.</p></div>
-      <div className="auth-proof"><p><Icon name="check"/><span><strong>Transaksi tanpa tebak-tebakan</strong><small>Lihat berat, kualitas, harga, dan status pembayaran.</small></span></p><p><Icon name="shield"/><span><strong>Bukti siap ditelusuri</strong><small>Setiap perubahan tersimpan tanpa menghapus catatan awal.</small></span></p></div>
-      <small>Demo testnet · Tidak ada pembayaran kripto</small>
-    </section>
-    <section className="auth-form-wrap"><div className="auth-language"><LanguageSwitch language={language} setLanguage={setLanguage}/></div><div className="auth-card">
-      <p className="portal-kicker">DEMO AKSES</p><h2>Masuk ke portal Anda</h2><p>Pilih identitas untuk mencoba pengalaman tiap pengguna.</p>
+  return <main className="role-entry-page">
+    <header className="role-entry-header"><button className="role-entry-back" onClick={onBack}><Icon name="arrow"/>Kembali</button><div className="landing-logo"><i><Icon name="leaf"/></i><strong>Pucuk</strong></div><LanguageSwitch language={language} setLanguage={setLanguage}/></header>
+    <motion.section className="auth-card role-entry-card" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:.35,ease:"easeOut"}}>
+      <p className="portal-kicker">PILIH PORTAL ANDA</p><h2>Satu alur transaksi, pengalaman yang tepat untuk setiap peran.</h2><p>Setiap akun hanya melihat data dan tindakan yang sesuai dengan perannya.</p>
       <div className="identity-list">{(Object.keys(profiles) as Role[]).map((role) => <motion.button layout whileHover={{y:-2}} whileTap={{scale:.98}} key={role} className={selected === role ? "selected" : ""} onClick={() => setSelected(role)}>
         <span>{profiles[role].initials}</span><div><strong>{role}</strong><small>{profiles[role].description}</small></div>{selected === role && <Icon name="check"/>}
       </motion.button>)}</div>
@@ -480,7 +494,7 @@ function Login({ selected, setSelected, language, setLanguage, onLogin }: { sele
         <button className="portal-primary" type="submit">Masuk sebagai {selected}<Icon name="arrow"/></button>
       </form>
       <div className="auth-selected"><span>{profile.initials}</span><div><strong>{profile.name}</strong><small>{profile.org}</small></div></div>
-    </div></section>
+    </motion.section>
   </main>;
 }
 
