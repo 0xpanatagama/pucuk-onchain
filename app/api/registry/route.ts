@@ -30,6 +30,9 @@ const normalizeDemoId = (value: unknown) =>
     ? value
     : PUCUK_DEFAULT_DEMO_ID;
 
+const receiptLabelFor = (demoId: string) =>
+  demoId.startsWith("PP-") ? demoId.replace(/-v\d+$/, "") : `PP-DEMO-${demoId.slice(-8).toUpperCase()}`;
+
 async function transactionHistory(receiptId: Hash) {
   const fromEtherscan = async () => {
     const apiKey = process.env.ETHERSCAN_API_KEY;
@@ -124,6 +127,7 @@ async function responseFor(
     exists: receipt !== null,
     demoId,
     receiptId,
+    receiptLabel: receiptLabelFor(demoId),
     contractAddress: PUCUK_REGISTRY_ADDRESS,
     explorerUrl: `${PUCUK_EXPLORER}/address/${PUCUK_REGISTRY_ADDRESS}`,
     state: receipt ? receiptStates[receipt.state] : "Draft",
@@ -191,9 +195,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = (await request.json()) as { action?: string; demoId?: string };
+    const body = (await request.json()) as { action?: string; demoId?: string; receiptId?: string };
     const demoId = normalizeDemoId(body.demoId);
     const receiptId = pucukDemoReceiptId(demoId);
+    const receiptLabel = receiptLabelFor(demoId);
+    if (body.receiptId !== receiptLabel) {
+      return NextResponse.json(
+        { error: `Receipt mismatch. Expected ${receiptLabel}; received ${body.receiptId || "none"}. No transaction was submitted.` },
+        { status: 409 },
+      );
+    }
     const allowed = new Set([
       "create",
       "farmerAgree",

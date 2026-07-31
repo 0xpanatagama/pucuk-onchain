@@ -15,6 +15,7 @@ type ChainSnapshot = {
   exists: boolean;
   demoId: string;
   receiptId: string;
+  receiptLabel: string;
   contractAddress: string;
   explorerUrl: string;
   state: ReceiptState;
@@ -22,6 +23,8 @@ type ChainSnapshot = {
   totalPayableIdr: string;
   transactions: { hash: string; url: string }[];
 };
+type TxPhase = "idle" | "review" | "submitting" | "submitted" | "confirmed" | "failed";
+type ActionError = { key: string; message: string } | null;
 
 const DEFAULT_DEMO_ID = "PP-2026-000042-v1";
 const profiles: Record<Role, { name: string; email: string; org: string; initials: string; description: string }> = {
@@ -183,6 +186,8 @@ export default function PortalClient() {
   const [chain, setChain] = useState<ChainSnapshot | null>(null);
   const [chainBusy, setChainBusy] = useState(false);
   const [chainError, setChainError] = useState("");
+  const [actionError, setActionError] = useState<ActionError>(null);
+  const [txPhase, setTxPhase] = useState<TxPhase>("idle");
   const [demoId, setDemoId] = useState(DEFAULT_DEMO_ID);
   const reduceMotion = useReducedMotion();
 
@@ -247,7 +252,8 @@ export default function PortalClient() {
       if (!response.ok) throw new Error(data.error || "Registry tidak dapat dibaca");
       applySnapshot(data);
     } catch (error) {
-      setChainError(error instanceof Error ? error.message : "Registry tidak dapat dibaca");
+      console.warn("Registry connection unavailable", error);
+      setChainError("Transaction service is temporarily unavailable. Demo screens remain available; try syncing again shortly.");
     }
   }, [applySnapshot]);
 
@@ -257,20 +263,29 @@ export default function PortalClient() {
     void syncChain(savedDemoId);
   }, [syncChain]);
 
-  const runChainAction = async (action: string, success: string) => {
+  const runChainAction = async (action: string, success: string, targetReceiptId?: string) => {
     if (chainBusy) return false;
+    const canonicalReceiptId = chain?.receiptLabel || (demoId.startsWith("PP-") ? demoId.replace(/-v\d+$/, "") : `PP-DEMO-${demoId.slice(-8).toUpperCase()}`);
+    if (targetReceiptId && targetReceiptId !== canonicalReceiptId) {
+      setActionError({ key: `${session}:${targetReceiptId}:${action}`, message: `Receipt mismatch: this action opened ${targetReceiptId}, but the active transaction is ${canonicalReceiptId}. No transaction was submitted.` });
+      setTxPhase("failed");
+      return false;
+    }
     setChainBusy(true);
-    setChainError("");
+    setActionError(null);
+    setTxPhase("submitting");
     flash("Mengirim transaksi…");
     try {
       const response = await fetch("/api/registry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, demoId }),
+        body: JSON.stringify({ action, demoId, receiptId: canonicalReceiptId }),
       });
+      setTxPhase("submitted");
       const data = await readApiResponse<ChainSnapshot & { error?: string }>(response);
       if (!response.ok) throw new Error(data.error || "Transaksi gagal");
       applySnapshot(data);
+      setTxPhase("confirmed");
       flash(success);
       const completionTitles: Record<string, string> = {
         create: "Pengajuan Operator selesai",
@@ -292,7 +307,8 @@ export default function PortalClient() {
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Transaksi gagal";
-      setChainError(message);
+      setActionError({ key: `${session}:${canonicalReceiptId}:${action}`, message });
+      setTxPhase("failed");
       flash("Transaksi belum berhasil. Coba lagi.");
       return false;
     } finally {
@@ -313,6 +329,8 @@ export default function PortalClient() {
     setDemoId(nextDemoId);
     setChain(null);
     setChainError("");
+    setActionError(null);
+    setTxPhase("idle");
     setReceiptState("Draft");
     setPaid(false);
     setDisputed(false);
@@ -346,6 +364,11 @@ export default function PortalClient() {
     return () => window.clearTimeout(timer);
   }, [workflowFocus]);
 
+  useEffect(() => {
+    setActionError(null);
+    setTxPhase((phase) => phase === "failed" ? "idle" : phase);
+  }, [session, screen]);
+
   if (!session) {
     return <Login selected={selected} setSelected={setSelected} language={language} setLanguage={setLanguage} onLogin={() => {
       setSession(selected);
@@ -356,7 +379,8 @@ export default function PortalClient() {
   const profile = profiles[session];
   const portalTitle = session === "Operator" ? "Portal Penerimaan" : session === "Petani" ? "Portal Petani" : session === "Pabrik" ? "Portal Pabrik" : "Portal Audit";
   const nextAction = nextActionFor(receiptState);
-  const workflowEntryKey = `${demoId}:${receiptState}:${session}:${screen}`;
+  const activeReceiptLabel = chain?.receiptLabel || (demoId.startsWith("PP-") ? demoId.replace(/-v\d+$/, "") : `PP-DEMO-${demoId.slice(-8).toUpperCase()}`);
+  const workflowEntryKey = `${session}:${activeReceiptLabel}:${receiptState}`;
   const entryBannerVisible = session === nextAction.role && screen === nextAction.screen && hiddenWorkflowEntry !== workflowEntryKey;
   const visibleCompletion = completionBanner?.originRole === session && completionBanner.originScreen === screen ? completionBanner : null;
   const visibleBanner = visibleCompletion || (entryBannerVisible ? { action: nextAction, title: nextAction.title, copy: nextAction.copy } : null);
@@ -381,7 +405,7 @@ export default function PortalClient() {
   else if (screen === "home" && session === "Auditor") activeView = <AuditorHome disputed={disputed} onVerify={() => setScreen("verify")} onDispute={() => setScreen("disputes")} />;
   else if (screen === "intake" && session === "Operator") activeView = <Intake step={intakeStep} setStep={setIntakeStep} onBegin={beginWorkflow} finish={() => { beginWorkflow(); void runChainAction("create", "Tanda terima dibuat. Lanjut sebagai Petani untuk meninjau dan mengonfirmasi pengiriman.").then((ok) => { if (ok) setScreen("receipts"); }); }} />;
   else if (screen === "receipts") activeView = <ReceiptView role={session} state={receiptState} paid={paid} disputed={disputed} proofUrl={proofUrl} proofHash={proofHash} onPay={() => setScreen("payments")} onDispute={() => setScreen("disputes")} />;
-  else if (screen === "payments" && session === "Pabrik") activeView = <Payments paid={paid} proofUrl={proofUrl} onPay={() => { beginWorkflow(); void runChainAction("pay", "Pembayaran dicatat. Lanjut sebagai Auditor untuk memverifikasi bukti transaksi."); }} />;
+  else if (screen === "payments" && session === "Pabrik") activeView = <Payments receiptId={activeReceiptLabel} paid={paid} proofUrl={proofUrl} txPhase={txPhase} actionError={actionError?.key === `Pabrik:${activeReceiptLabel}:pay` ? actionError.message : ""} onBegin={() => { beginWorkflow(); setTxPhase("review"); setActionError(null); }} onCancel={() => { setTxPhase("idle"); setActionError(null); }} onPay={() => { void runChainAction("pay", "Pembayaran dicatat. Lanjut sebagai Auditor untuk memverifikasi bukti transaksi.", activeReceiptLabel); }} />;
   else if (screen === "verify" && session === "Auditor") activeView = <Verification proofUrl={proofUrl} proofHash={proofHash} />;
   else activeView = <Disputes role={session} disputed={disputed} onSubmit={() => { beginWorkflow(); void runChainAction("dispute", session === "Auditor" ? "Sengketa ditandai untuk penyelesaian." : "Pengajuan koreksi dicatat. Lanjut sebagai Auditor untuk meninjau sengketa."); }} />;
 
@@ -400,7 +424,8 @@ export default function PortalClient() {
     <main className="portal-main">
       <header className="portal-header"><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a><button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
       {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `Demo ${demoId.slice(-12)} · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
-      {visibleBanner && <NextActionGuide action={visibleBanner.action} title={visibleBanner.title} copy={visibleBanner.copy} complete={Boolean(visibleCompletion)} onContinue={() => continueWorkflow(visibleBanner.action)}/>}
+      {visibleBanner && <NextActionGuide action={visibleBanner.action} title={visibleBanner.title} copy={visibleBanner.copy} complete={Boolean(visibleCompletion)} showContinue={Boolean(visibleCompletion && visibleBanner.action.role !== session)} onContinue={() => continueWorkflow(visibleBanner.action)}/>}
+      {actionError && screen !== "payments" && <div className="action-error role-scoped"><Icon name="alert"/><span><b>Action failed for {activeReceiptLabel}</b>{actionError.message}</span></div>}
       <AnimatePresence mode="wait"><motion.div key={`${session}-${screen}`} initial={reduceMotion ? false : {opacity:0,y:10}} animate={{opacity:1,y:0}} exit={reduceMotion ? undefined : {opacity:0,y:-6}} transition={{duration:.2,ease:"easeOut"}}>{activeView}</motion.div></AnimatePresence>
     </main>
   </div>;
@@ -413,11 +438,11 @@ function LanguageSwitch({ language, setLanguage }: { language: PortalLanguage; s
   </div>;
 }
 
-function NextActionGuide({ action, title, copy, complete, onContinue }: { action: NextAction; title: string; copy: string; complete: boolean; onContinue: () => void }) {
+function NextActionGuide({ action, title, copy, complete, showContinue, onContinue }: { action: NextAction; title: string; copy: string; complete: boolean; showContinue: boolean; onContinue: () => void }) {
   return <section className={`next-action-guide ${complete ? "complete" : ""}`} aria-label={complete ? "Tindakan selesai" : "Tindakan berikutnya"}>
     <i><Icon name={complete ? "check" : "arrow"}/></i>
     <div><small>{complete ? "SELESAI" : "TANGGUNG JAWAB ANDA"} · {action.role}</small><strong>{title}</strong><p>{copy}</p></div>
-    <button onClick={onContinue}>{action.cta}<Icon name="arrow"/></button>
+    {showContinue && <button onClick={onContinue}>{action.cta}<Icon name="arrow"/></button>}
   </section>;
 }
 
@@ -596,8 +621,8 @@ function AuditorHome({ disputed, onVerify, onDispute }: { disputed: boolean; onV
 }
 
 function ReceiptRows({ onOpen, operator = false }: { onOpen: () => void; operator?: boolean }) {
-  const rows = [["PP-2026-000042","Sari Rahayu","42,50 kg","Rp95.625"],["PP-2026-000041","Dedi Suhendar","38,20 kg","Rp90.725"],["PP-2026-000040","Nani Marlina","51,75 kg","Rp116.438"]];
-  return <div className="receipt-rows">{rows.map((row, index) => <button key={row[0]} onClick={onOpen}><span className="mini-avatar">{row[1].split(" ").map((word) => word[0]).join("")}</span><span><strong>{row[1]}</strong><small>{row[0]}</small></span><span><strong>{row[2]}</strong><small>{operator ? "Grade B" : "Berat"}</small></span><span><strong>{row[3]}</strong><small>Total</small></span><i className={`portal-status ${index === 0 ? "blue" : "green"}`}>{index === 0 ? "Perlu tindakan" : "Lengkap"}</i><Icon name="arrow"/></button>)}</div>;
+  const row = ["PP-2026-000042","Sari Rahayu","42,50 kg","Rp95.625"];
+  return <div className="receipt-rows"><button onClick={onOpen}><span className="mini-avatar">SR</span><span><strong>{row[1]}</strong><small>{row[0]}</small></span><span><strong>{row[2]}</strong><small>{operator ? "Grade B" : "Berat"}</small></span><span><strong>{row[3]}</strong><small>Total</small></span><i className="portal-status blue">Perlu tindakan</i><Icon name="arrow"/></button></div>;
 }
 
 function Intake({ step, setStep, onBegin, finish }: { step: number; setStep: (step: number) => void; onBegin: () => void; finish: () => void }) {
@@ -634,10 +659,15 @@ function ReceiptLifecycle({ current }: { current: ReceiptState }) {
   return <section className="portal-card lifecycle-card"><div className="portal-card-head"><div><h2>Perjalanan tanda terima</h2><p>Setiap keputusan tersimpan sebagai peristiwa baru. Catatan lama tidak dihapus.</p></div></div><div className="lifecycle-track">{steps.map((step,index) => <div key={step.key} className={`${index <= currentIndex ? "done" : ""} ${step.key === current ? "current" : ""}`}><i>{index < currentIndex ? <Icon name="check"/> : index + 1}</i><span><b>{step.label}</b><small>{step.owner}</small></span></div>)}</div>{current === "Disputed" && <div className="lifecycle-branch"><Icon name="alert"/><span><b>Disengketakan</b><small>Auditor dapat meminta bukti, mempertahankan catatan awal, atau menerbitkan pengganti.</small></span></div>}</section>;
 }
 
-function Payments({ paid, proofUrl, onPay }: { paid: boolean; proofUrl?: string; onPay: () => void }) {
+function Payments({ receiptId, paid, proofUrl, txPhase, actionError, onBegin, onCancel, onPay }: { receiptId: string; paid: boolean; proofUrl?: string; txPhase: TxPhase; actionError: string; onBegin: () => void; onCancel: () => void; onPay: () => void }) {
+  const reviewing = txPhase === "review" || txPhase === "submitting" || txPhase === "submitted" || txPhase === "failed";
+  const busy = txPhase === "submitting" || txPhase === "submitted";
   return <div className="portal-content"><PageHead kicker="PORTAL PABRIK" title="Kewajiban pembayaran" copy="Pembayaran dilakukan dalam IDR; bukti privat tetap terlindungi."/>
-    {paid && <a className="payment-proof" href={proofUrl} target="_blank" rel="noreferrer"><Icon name="check"/><span><b>Pembayaran PP-2026-000042 sudah tercatat</b><small>Periksa waktu, pengirim, status, dan detail pembayaran.</small></span><strong>Lihat bukti transaksi <Icon name="arrow"/></strong></a>}
-    <section className="portal-card payment-table"><div className="payment-head"><span>TANDA TERIMA</span><span>PETANI</span><span>BERAT</span><span>TOTAL</span><span>STATUS</span><span/></div>{!paid && <div className="payment-row"><strong>PP-2026-000042</strong><span>Sari Rahayu</span><span>42,50 kg</span><strong>Rp95.625</strong><i className="portal-status blue">Kewajiban disetujui</i><button onClick={onPay}>Catat pembayaran IDR</button></div>}<div className="payment-row"><strong>PP-2026-000038</strong><span>Dedi Suhendar</span><span>44,20 kg</span><strong>Rp104.975</strong><i className="portal-status amber">Dibayar sebagian</i><button onClick={onPay}>Catat sisa pembayaran</button></div></section>
+    <div className="demo-disclaimer"><Icon name="alert"/><span><b>Demo testnet</b> — roles and approvals are simulated, no real funds move, and the public transaction record does not independently prove identity.</span></div>
+    {paid && proofUrl && <a className="payment-proof" href={proofUrl} target="_blank" rel="noreferrer"><Icon name="check"/><span><b>Pembayaran {receiptId} sudah dikonfirmasi</b><small>Hash transaksi tersedia sebagai bukti publik.</small></span><strong>Lihat transaksi <Icon name="arrow"/></strong></a>}
+    {!reviewing && <section className="portal-card payment-table"><div className="payment-head"><span>TANDA TERIMA</span><span>PETANI</span><span>BERAT</span><span>TOTAL</span><span>STATUS</span><span/></div>{!paid && <div className="payment-row"><strong>{receiptId}</strong><span>Sari Rahayu</span><span>42,50 kg</span><strong>Rp95.625</strong><i className="portal-status blue">Kewajiban disetujui</i><button onClick={onBegin}>Tinjau pembayaran</button></div>}{paid && <div className="empty-queue"><Icon name="check"/><span><b>Tidak ada pembayaran aktif</b><small>Receipt yang sudah selesai dipindahkan ke riwayat.</small></span></div>}</section>}
+    {reviewing && <section className="portal-card payment-confirmation" aria-live="polite"><div className="portal-card-head"><div><small>REVIEW</small><h2>Konfirmasi pembayaran</h2><p>Pastikan receipt dan nominal benar sebelum transaksi dikirim.</p></div><i className={`portal-status ${busy ? "amber" : "blue"}`}>{txPhase === "review" ? "Review" : txPhase === "submitting" ? "Mengirim" : txPhase === "submitted" ? "Terkirim · menunggu konfirmasi" : "Perlu dicoba lagi"}</i></div><dl><div><dt>Receipt ID</dt><dd><code>{receiptId}</code></dd></div><div><dt>Petani</dt><dd>Sari Rahayu</dd></div><div><dt>Pabrik</dt><dd>Pabrik Teh Nusantara</dd></div><div><dt>Jumlah pembayaran</dt><dd>Rp95.625</dd></div><div><dt>Sebelum pembayaran</dt><dd>Rp95.625</dd></div><div><dt>Setelah pembayaran</dt><dd>Rp0</dd></div><div><dt>Bukti pembayaran</dt><dd>Optional for demo</dd></div><div><dt>Jaringan</dt><dd>Testnet</dd></div></dl>{actionError && <div className="action-error"><Icon name="alert"/><span><b>Transaksi belum berhasil</b>{actionError}</span></div>}<div className="confirmation-actions"><button onClick={onCancel} disabled={busy}>Batal</button><button className="portal-primary" onClick={onPay} disabled={busy}>{busy ? "Menunggu konfirmasi…" : actionError ? "Coba lagi" : "Catat pembayaran"}</button></div></section>}
+    <section className="portal-card payment-history"><div className="portal-card-head"><div><h2>Riwayat pembayaran</h2><p>Catatan selesai hanya-baca; tidak dapat dikirim ulang.</p></div></div><div className="payment-row history"><strong>PP-2026-000038</strong><span>Dedi Suhendar</span><span>44,20 kg</span><strong>Rp104.975</strong><i className="portal-status green">Sudah dibayar</i><span>24 Jul 2026</span></div></section>
   </div>;
 }
 
