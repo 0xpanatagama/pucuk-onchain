@@ -59,6 +59,7 @@ body{background:var(--gallery-paper);color:var(--gallery-ink)}
 .auth-story h1{max-width:590px;margin:18px 0 22px;font-size:clamp(52px,4.25vw,66px);line-height:.98;letter-spacing:-.045em}
 .auth-story>div>p:not(.portal-kicker){max-width:540px;font-size:17px;line-height:1.55;color:#d4e4dd}
 .auth-story .portal-kicker,.auth-card .portal-kicker{font-size:11px;letter-spacing:.2em}
+.auth-story .portal-kicker{gap:8px;letter-spacing:.11em;color:#c7ddd3}.auth-story .portal-kicker:before{width:5px;height:5px;box-shadow:none}
 .auth-proof{gap:18px}.auth-proof p{gap:14px}.auth-proof svg{width:22px}.auth-proof strong{font-size:16px}.auth-proof small{font-size:13px;line-height:1.45;margin-top:4px}.auth-story>small{font-size:11px;color:#a9c5b9}
 .auth-form-wrap{grid-template-columns:minmax(0,640px);gap:16px;padding:36px}
 .auth-card{padding:var(--auth-space)}

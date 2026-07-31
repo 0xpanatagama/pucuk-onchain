@@ -459,7 +459,7 @@ function Login({ selected, setSelected, language, setLanguage, onLogin }: { sele
   return <main className="auth-page">
     <section className="auth-story">
       <div className="auth-logo"><i><Icon name="leaf" /></i><strong>Pucuk</strong></div>
-      <div><p className="portal-kicker">CATAT · SEPAKATI · BAYAR</p><h1>Setiap daun tercatat.<br/>Setiap pembayaran jelas.</h1><p>Pucuk mencatat hasil timbang, kualitas, dan harga—lalu membantu semua pihak memantau pembayaran dan menelusuri buktinya.</p></div>
+      <div><p className="portal-kicker">CATAT SEPAKATI BAYAR</p><h1>Setiap daun tercatat.<br/>Setiap pembayaran jelas.</h1><p>Pucuk mencatat hasil timbang, kualitas, dan harga, sehingga semua pihak dapat memantau pembayaran dan menelusuri buktinya.</p></div>
       <div className="auth-proof"><p><Icon name="check"/><span><strong>Transaksi tanpa tebak-tebakan</strong><small>Lihat berat, kualitas, harga, dan status pembayaran.</small></span></p><p><Icon name="shield"/><span><strong>Bukti siap ditelusuri</strong><small>Setiap perubahan tersimpan tanpa menghapus catatan awal.</small></span></p></div>
       <small>Demo testnet · Tidak ada pembayaran kripto</small>
     </section>
