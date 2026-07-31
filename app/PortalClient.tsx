@@ -356,7 +356,6 @@ export default function PortalClient() {
     const timer = window.setTimeout(() => {
       const target = document.querySelector<HTMLElement>(workflowFocus.targetSelector);
       if (!target) return;
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
       target.classList.remove("workflow-action-focus");
       void target.getBoundingClientRect();
       target.classList.add("workflow-action-focus");
@@ -369,6 +368,13 @@ export default function PortalClient() {
     setActionError(null);
     setTxPhase((phase) => phase === "failed" ? "idle" : phase);
   }, [session, screen]);
+
+  useEffect(() => {
+    window.history.scrollRestoration = "manual";
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    const frame = window.requestAnimationFrame(() => window.scrollTo(0, 0));
+    return () => window.cancelAnimationFrame(frame);
+  }, [session]);
 
   useEffect(() => {
     const updateHeader = () => setHeaderScrolled(window.scrollY > 10);
