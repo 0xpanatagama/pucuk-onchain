@@ -5,17 +5,17 @@ import "./gallery-system.css";
 
 export const metadata: Metadata = {
   title: "Pucuk - Traceability at the speed of light",
-  description: "Clear, verifiable, and trusted tea-leaf transactions for every participant.",
+  description: "Bringing evidence into one seamless flow every party can trust.",
   openGraph: {
     title: "Pucuk - Traceability at the speed of light",
-    description: "Clear, verifiable, and trusted tea-leaf transactions for every participant.",
+    description: "Bringing evidence into one seamless flow every party can trust.",
     siteName: "Pucuk",
     type: "website",
   },
   twitter: {
     card: "summary",
     title: "Pucuk - Traceability at the speed of light",
-    description: "Clear, verifiable, and trusted tea-leaf transactions for every participant.",
+    description: "Bringing evidence into one seamless flow every party can trust.",
   },
 };
 
