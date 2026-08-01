@@ -305,6 +305,21 @@ export async function POST(request: Request) {
         { error: "Operator must create the demo receipt first" },
         { status: 409 },
       );
+    } else if (
+      body.action === "pay" &&
+      receipt.state !== 3 &&
+      receipt.state !== 4
+    ) {
+      return NextResponse.json(
+        {
+          error: `Pembayaran belum dapat dicatat. ${
+            receipt.state === 2
+              ? "Setujui kewajiban terlebih dahulu."
+              : "Selesaikan langkah sebelumnya terlebih dahulu."
+          } Status receipt saat ini: ${receiptStates[receipt.state]}.`,
+        },
+        { status: 409 },
+      );
     } else if (body.action === "farmerAgree" && receipt.state === 1) {
       await send("farmerAgree", [receiptId]);
       await waitFor(async () => (await readReceipt(receiptId))?.state === 2);

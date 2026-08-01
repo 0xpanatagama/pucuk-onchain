@@ -25,6 +25,7 @@ type ChainSnapshot = {
 };
 type TxPhase = "idle" | "review" | "submitting" | "submitted" | "confirmed" | "failed";
 type ActionError = { key: string; message: string } | null;
+type ToastState = { text: string; tone: "success" | "info" | "error" } | null;
 
 const DEFAULT_DEMO_ID = "PP-2026-000042-v1";
 const profiles: Record<Role, { name: string; email: string; org: string; initials: string; description: string }> = {
@@ -181,7 +182,7 @@ export default function PortalClient() {
   const [screen, setScreen] = useState<Screen>("home");
   const [paid, setPaid] = useState(false);
   const [disputed, setDisputed] = useState(false);
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState<ToastState>(null);
   const [workflowFocus, setWorkflowFocus] = useState<{ targetSelector: string; nonce: number } | null>(null);
   const [hiddenWorkflowEntry, setHiddenWorkflowEntry] = useState("");
   const [completionBanner, setCompletionBanner] = useState<CompletionBanner | null>(null);
@@ -217,9 +218,9 @@ export default function PortalClient() {
     };
   }, [language]);
 
-  const flash = (text: string) => {
-    setToast(text);
-    window.setTimeout(() => setToast(""), 2200);
+  const flash = (text: string, tone: NonNullable<ToastState>["tone"] = "success") => {
+    setToast({ text, tone });
+    window.setTimeout(() => setToast(null), 2200);
   };
 
   const applySnapshot = useCallback((snapshot: ChainSnapshot) => {
@@ -279,7 +280,7 @@ export default function PortalClient() {
     setChainBusy(true);
     setActionError(null);
     setTxPhase("submitting");
-    flash("Mengirim transaksi…");
+    flash("Mengirim transaksi…", "info");
     try {
       const response = await fetch("/api/registry", {
         method: "POST",
@@ -314,7 +315,7 @@ export default function PortalClient() {
       const message = error instanceof Error ? error.message : "Transaksi gagal";
       setActionError({ key: `${session}:${canonicalReceiptId}:${action}`, message });
       setTxPhase("failed");
-      flash("Transaksi belum berhasil. Coba lagi.");
+      flash("Transaksi belum berhasil. Coba lagi.", "error");
       return false;
     } finally {
       setChainBusy(false);
@@ -425,12 +426,20 @@ export default function PortalClient() {
   else if (screen === "home" && session === "Auditor") activeView = <AuditorHome disputed={disputed} onVerify={() => setScreen("verify")} onDispute={() => setScreen("disputes")} />;
   else if (screen === "intake" && session === "Operator") activeView = <Intake step={intakeStep} setStep={setIntakeStep} onBegin={beginWorkflow} finish={() => { beginWorkflow(); void runChainAction("create", "Tanda terima dibuat. Lanjut sebagai Petani untuk meninjau dan mengonfirmasi pengiriman.").then((ok) => { if (ok) setScreen("receipts"); }); }} />;
   else if (screen === "receipts") activeView = <ReceiptView role={session} state={receiptState} paid={paid} disputed={disputed} proofUrl={proofUrl} proofHash={proofHash} onPay={() => setScreen("payments")} onDispute={() => setScreen("disputes")} />;
-  else if (screen === "payments" && session === "Pabrik") activeView = <Payments receiptId={activeReceiptLabel} paid={paid} proofUrl={proofUrl} txPhase={txPhase} actionError={actionError?.key === `Pabrik:${activeReceiptLabel}:pay` ? actionError.message : ""} onBegin={() => { beginWorkflow(); setTxPhase("review"); setActionError(null); }} onCancel={() => { setTxPhase("idle"); setActionError(null); }} onPay={() => { void runChainAction("pay", "Pembayaran dicatat. Lanjut sebagai Auditor untuk memverifikasi bukti transaksi.", activeReceiptLabel); }} />;
+  else if (screen === "payments" && session === "Pabrik") activeView = <Payments receiptId={activeReceiptLabel} state={receiptState} paid={paid} proofUrl={proofUrl} txPhase={txPhase} actionError={actionError?.key.startsWith(`Pabrik:${activeReceiptLabel}:`) ? actionError.message : ""} onApprove={() => { beginWorkflow(); void runChainAction("approve", "Kewajiban disetujui. Lanjut ke Pembayaran untuk mencatat pembayaran IDR."); }} onBegin={() => { beginWorkflow(); setTxPhase("review"); setActionError(null); }} onCancel={() => { setTxPhase("idle"); setActionError(null); }} onPay={() => {
+    if (receiptState !== "Approved" && receiptState !== "PartiallyPaid") {
+      setActionError({ key: `Pabrik:${activeReceiptLabel}:pay`, message: `Pembayaran belum dapat dicatat. Setujui kewajiban terlebih dahulu. Status receipt saat ini: ${stateLabel(receiptState)}.` });
+      setTxPhase("idle");
+      flash("Transaksi belum berhasil. Coba lagi.", "error");
+      return;
+    }
+    void runChainAction("pay", "Pembayaran dicatat. Lanjut sebagai Auditor untuk memverifikasi bukti transaksi.", activeReceiptLabel);
+  }} />;
   else if (screen === "verify" && session === "Auditor") activeView = <Verification proofUrl={proofUrl} proofHash={proofHash} />;
   else activeView = <Disputes role={session} disputed={disputed} onSubmit={() => { beginWorkflow(); void runChainAction("dispute", session === "Auditor" ? "Sengketa ditandai untuk penyelesaian." : "Pengajuan koreksi dicatat. Lanjut sebagai Auditor untuk meninjau sengketa."); }} />;
 
   return <div className={`portal-shell role-${session.toLowerCase()}`}>
-    <AnimatePresence>{toast && <motion.div className="portal-toast" initial={{opacity:0,y:-14,scale:.96}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-10,scale:.98}}><Icon name="check" />{toast}</motion.div>}</AnimatePresence>
+    <AnimatePresence>{toast && <motion.div className={`portal-toast ${toast.tone}`} initial={{opacity:0,y:-14,scale:.96}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-10,scale:.98}}><Icon name={toast.tone === "error" ? "alert" : toast.tone === "info" ? "arrow" : "check"} />{toast.text}</motion.div>}</AnimatePresence>
     <aside className="portal-sidebar">
       <button className="portal-logo" onClick={() => setScreen("home")}><i><Icon name="leaf" /></i><strong>Pucuk</strong></button>
       <div className="portal-identity"><span>{profile.initials}</span><div><small>ANDA MASUK KE</small><strong>{portalTitle}</strong><em>{profile.org}</em></div></div>
@@ -770,8 +779,15 @@ function FactoryHome({ paid, state, proofUrl, onApprove, onPayments, onReceipt }
     {initials:"CW",title:"Batch Ciwidey 036",note:"Ciwidey · 25 Jul · Grade B",value:"241,9 kg",status:"Menunggu bukti",tone:"amber"},
     {initials:"CI",title:"Batch Cisarua 033",note:"Cisarua · 24 Jul · Grade A",value:"305,6 kg",status:"Selesai",tone:"green"},
   ].filter((item) => filters.scope === options[0] || item.note.includes(filters.scope.split(" · ")[0])).slice(0,activityLimit(filters.range));
+  const pageAction = state === "Registered"
+    ? <button className="portal-primary" onClick={onPayments}><Icon name="shield"/>Tinjau kewajiban</button>
+    : state === "Approved" || state === "PartiallyPaid"
+      ? <button className="portal-primary" onClick={onPayments}><Icon name="wallet"/>Buka pembayaran</button>
+      : state === "Paid"
+        ? <button className="portal-primary" onClick={onReceipt}><Icon name="check"/>Lihat tanda terima</button>
+        : <button className="portal-primary" disabled><Icon name="alert"/>Menunggu langkah sebelumnya</button>;
   return <div className="portal-content analytics-dashboard factory-dashboard">
-    <PageHead kicker="KINERJA PABRIK" title="Ubah pasokan masuk menjadi output yang terukur" copy="Pantau pasokan, hasil proses, pemakaian kapasitas, mutu, persediaan, dan output produksi dalam satu cakupan operasional." action={<button className="portal-primary" onClick={onPayments}><Icon name="wallet"/>Buka pembayaran</button>}/>
+    <PageHead kicker="KINERJA PABRIK" title="Ubah pasokan masuk menjadi output yang terukur" copy="Pantau pasokan, hasil proses, pemakaian kapasitas, mutu, persediaan, dan output produksi dalam satu cakupan operasional." action={pageAction}/>
     <AnalyticsControls scope={`${filters.scope} · Data produksi demo`} options={options} filters={filters} onChange={setFilters}/>
     <div className="portal-metrics analytics-kpis"><Metric icon="leaf" label="PASOKAN MASUK" value={`${formatDecimal(supplyKg)} kg`} note={`${Math.max(1,scaled(37,factor))} tanda terima`} change="+9,4%" progress={86}/><Metric icon="check" label="HASIL PROSES" value={`${formatDecimal(yieldRate)}%`} note={`${formatDecimal(productionKg)} kg terproses`} change="+1,8 poin" progress={yieldRate}/><Metric icon="shield" label="UTILISASI KAPASITAS" value={`${Math.round(capacity)}%`} note="Dari kapasitas harian" tone="blue" change="Stabil" progress={capacity}/><Metric icon="file" label="OUTPUT PRODUKSI" value={`${formatDecimal(productionKg)} kg`} note={`${formatDecimal(productionKg*.32)} kg persediaan`} change="+7,1%" progress={79}/></div>
     <div className="analytics-grid analytics-primary"><TrendChart title="Pasokan dan output produksi" subtitle={`Kilogram per minggu · ${periodLabel[filters.range]}`} data={scaledSeries([88,96,91,108,104,116,112,124,119,131,128,139],chartFactor(filters,options),1.2)} second={scaledSeries([69,76,72,85,82,92,88,99,94,105,101,112],chartFactor(filters,options),1)} legend={["Pasokan masuk","Output produksi"]} suffix=" kg"/><BreakdownDonut title="Kinerja kualitas" subtitle={`${filters.scope} · ${periodLabel[filters.range]}`} centerLabel="Grade A" rows={[{label:"Grade A",value:gradeA,display:`${gradeA} kg`},{label:"Grade B",value:gradeB,display:`${gradeB} kg`},{label:"Di luar grade",value:offGrade,display:`${offGrade} kg`}]}/></div>
@@ -848,14 +864,18 @@ function ReceiptLifecycle({ current }: { current: ReceiptState }) {
   return <section className="portal-card lifecycle-card"><div className="portal-card-head"><div><h2>Perjalanan tanda terima</h2><p>Setiap keputusan tersimpan sebagai peristiwa baru. Catatan lama tidak dihapus.</p></div></div><div className="lifecycle-track">{steps.map((step,index) => <div key={step.key} className={`${index <= currentIndex ? "done" : ""} ${step.key === current ? "current" : ""}`}><i>{index < currentIndex ? <Icon name="check"/> : index + 1}</i><span><b>{step.label}</b><small>{step.owner}</small></span></div>)}</div>{current === "Disputed" && <div className="lifecycle-branch"><Icon name="alert"/><span><b>Disengketakan</b><small>Auditor dapat meminta bukti, mempertahankan catatan awal, atau menerbitkan pengganti.</small></span></div>}</section>;
 }
 
-function Payments({ receiptId, paid, proofUrl, txPhase, actionError, onBegin, onCancel, onPay }: { receiptId: string; paid: boolean; proofUrl?: string; txPhase: TxPhase; actionError: string; onBegin: () => void; onCancel: () => void; onPay: () => void }) {
+function Payments({ receiptId, state, paid, proofUrl, txPhase, actionError, onApprove, onBegin, onCancel, onPay }: { receiptId: string; state: ReceiptState; paid: boolean; proofUrl?: string; txPhase: TxPhase; actionError: string; onApprove: () => void; onBegin: () => void; onCancel: () => void; onPay: () => void }) {
+  const approvalRequired = state === "Registered";
+  const paymentReady = state === "Approved" || state === "PartiallyPaid";
   const reviewing = txPhase === "review" || txPhase === "submitting" || txPhase === "submitted" || txPhase === "failed";
   const busy = txPhase === "submitting" || txPhase === "submitted";
   return <div className="portal-content"><PageHead kicker="PORTAL PABRIK" title="Kewajiban pembayaran" copy="Pembayaran dilakukan dalam IDR; bukti privat tetap terlindungi."/>
     <div className="demo-disclaimer"><Icon name="alert"/><span><b>Demo testnet</b> — roles and approvals are simulated, no real funds move, and the public transaction record does not independently prove identity.</span></div>
     {paid && proofUrl && <a className="payment-proof" href={proofUrl} target="_blank" rel="noreferrer"><Icon name="check"/><span><b>Pembayaran {receiptId} sudah dikonfirmasi</b><small>Hash transaksi tersedia sebagai bukti publik.</small></span><strong>Lihat transaksi <Icon name="arrow"/></strong></a>}
-    {!reviewing && <section className="portal-card payment-table"><div className="payment-head"><span>TANDA TERIMA</span><span>PETANI</span><span>BERAT</span><span>TOTAL</span><span>STATUS</span><span/></div>{!paid && <div className="payment-row"><strong>{receiptId}</strong><span>Sari Rahayu</span><span>42,50 kg</span><strong>Rp95.625</strong><i className="portal-status blue">Kewajiban disetujui</i><button onClick={onBegin}>Tinjau pembayaran</button></div>}{paid && <div className="empty-queue"><Icon name="check"/><span><b>Tidak ada pembayaran aktif</b><small>Receipt yang sudah selesai dipindahkan ke riwayat.</small></span></div>}</section>}
-    {reviewing && <section className="portal-card payment-confirmation" aria-live="polite"><div className="portal-card-head"><div><small>REVIEW</small><h2>Konfirmasi pembayaran</h2><p>Pastikan receipt dan nominal benar sebelum transaksi dikirim.</p></div><i className={`portal-status ${busy ? "amber" : "blue"}`}>{txPhase === "review" ? "Review" : txPhase === "submitting" ? "Mengirim" : txPhase === "submitted" ? "Terkirim · menunggu konfirmasi" : "Perlu dicoba lagi"}</i></div><dl><div><dt>Receipt ID</dt><dd><code>{receiptId}</code></dd></div><div><dt>Petani</dt><dd>Sari Rahayu</dd></div><div><dt>Pabrik</dt><dd>Pabrik Teh Nusantara</dd></div><div><dt>Jumlah pembayaran</dt><dd>Rp95.625</dd></div><div><dt>Sebelum pembayaran</dt><dd>Rp95.625</dd></div><div><dt>Setelah pembayaran</dt><dd>Rp0</dd></div><div><dt>Bukti pembayaran</dt><dd>Optional for demo</dd></div><div><dt>Jaringan</dt><dd>Testnet</dd></div></dl>{actionError && <div className="action-error"><Icon name="alert"/><span><b>Transaksi belum berhasil</b>{actionError}</span></div>}<div className="confirmation-actions"><button onClick={onCancel} disabled={busy}>Batal</button><button className="portal-primary" onClick={onPay} disabled={busy}>{busy ? "Menunggu konfirmasi…" : actionError ? "Coba lagi" : "Catat pembayaran"}</button></div></section>}
+    {!paid && !paymentReady && <section className="portal-card payment-prerequisite" aria-live="polite"><i><Icon name={approvalRequired ? "shield" : "alert"}/></i><div><small>{approvalRequired ? "PERSETUJUAN DIPERLUKAN" : "LANGKAH SEBELUMNYA DIPERLUKAN"}</small><h2>{approvalRequired ? "Setujui kewajiban sebelum pembayaran" : "Pembayaran belum tersedia"}</h2><p>{approvalRequired ? "Receipt telah dikonfirmasi oleh Petani. Tinjau nominal dan setujui kewajiban agar pembayaran dapat dicatat." : "Selesaikan langkah yang ditunjukkan pada panduan transaksi sebelum mencatat pembayaran."}</p></div><em className={`portal-status ${approvalRequired ? "blue" : "amber"}`}>{stateLabel(state)}</em>{actionError && <div className="action-error"><Icon name="alert"/><span><b>Transaksi belum berhasil</b>{actionError}</span></div>}<div className="prerequisite-actions">{approvalRequired ? <button className="portal-primary" onClick={onApprove} disabled={busy}><Icon name="check"/>{busy ? "Menunggu konfirmasi…" : actionError ? "Coba lagi" : "Setujui kewajiban"}</button> : <span><Icon name="alert"/>Menunggu langkah sebelumnya selesai</span>}</div></section>}
+    {paymentReady && !reviewing && <section className="portal-card payment-table"><div className="payment-head"><span>TANDA TERIMA</span><span>PETANI</span><span>BERAT</span><span>TOTAL</span><span>STATUS</span><span/></div><div className="payment-row"><strong>{receiptId}</strong><span>Sari Rahayu</span><span>42,50 kg</span><strong>Rp95.625</strong><i className="portal-status blue">Kewajiban disetujui</i><button onClick={onBegin}>Tinjau pembayaran</button></div></section>}
+    {paymentReady && reviewing && <section className="portal-card payment-confirmation" aria-live="polite"><div className="portal-card-head"><div><small>REVIEW</small><h2>Konfirmasi pembayaran</h2><p>Pastikan receipt dan nominal benar sebelum transaksi dikirim.</p></div><i className={`portal-status ${busy ? "amber" : "blue"}`}>{txPhase === "review" ? "Review" : txPhase === "submitting" ? "Mengirim" : txPhase === "submitted" ? "Terkirim · menunggu konfirmasi" : "Perlu dicoba lagi"}</i></div><dl><div><dt>Receipt ID</dt><dd><code>{receiptId}</code></dd></div><div><dt>Petani</dt><dd>Sari Rahayu</dd></div><div><dt>Pabrik</dt><dd>Pabrik Teh Nusantara</dd></div><div><dt>Jumlah pembayaran</dt><dd>Rp95.625</dd></div><div><dt>Sebelum pembayaran</dt><dd>Rp95.625</dd></div><div><dt>Setelah pembayaran</dt><dd>Rp0</dd></div><div><dt>Bukti pembayaran</dt><dd>Optional for demo</dd></div><div><dt>Jaringan</dt><dd>Testnet</dd></div></dl>{actionError && <div className="action-error"><Icon name="alert"/><span><b>Transaksi belum berhasil</b>{actionError}</span></div>}<div className="confirmation-actions"><button onClick={onCancel} disabled={busy}>Batal</button><button className="portal-primary" onClick={onPay} disabled={busy}>{busy ? "Menunggu konfirmasi…" : actionError ? "Coba lagi" : "Catat pembayaran"}</button></div></section>}
+    {paid && <section className="portal-card payment-table"><div className="empty-queue"><Icon name="check"/><span><b>Tidak ada pembayaran aktif</b><small>Receipt yang sudah selesai dipindahkan ke riwayat.</small></span></div></section>}
     <section className="portal-card payment-history"><div className="portal-card-head"><div><h2>Riwayat pembayaran</h2><p>Catatan selesai hanya-baca; tidak dapat dikirim ulang.</p></div></div><div className="payment-row history"><strong>PP-2026-000038</strong><span>Dedi Suhendar</span><span>44,20 kg</span><strong>Rp104.975</strong><i className="portal-status green">Sudah dibayar</i><span>24 Jul 2026</span></div></section>
   </div>;
 }
