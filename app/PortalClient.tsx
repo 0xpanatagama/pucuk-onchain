@@ -435,7 +435,7 @@ export default function PortalClient() {
         if (item.screen === "intake") setIntakeStep(1);
       }}><Icon name={item.icon}/><span>{item.label}</span>{item.badge && <b>{item.badge}</b>}</button>)}</nav>
       <div className="portal-user"><span>{profile.initials}</span><div><strong>{profile.name}</strong><small>{session} · Demo</small></div></div>
-      <button className="portal-logout" onClick={() => setSession(null)}><Icon name="logout" />Keluar & ganti akun</button>
+      <button className="portal-logout" onClick={() => { setEntryStep("login"); setSession(null); }}><Icon name="logout" />Keluar & ganti akun</button>
     </aside>
     <main className="portal-main">
       <header className={`portal-header ${headerScrolled ? "scrolled" : ""}`}><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a><button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
@@ -448,9 +448,12 @@ export default function PortalClient() {
 }
 
 function LanguageSwitch({ language, setLanguage }: { language: PortalLanguage; setLanguage: (language: PortalLanguage) => void }) {
+  const reduceMotion = useReducedMotion();
   return <div className="language-switch" role="group" aria-label="Pilih bahasa">
-    <button className={language === "en" ? "active" : ""} onClick={() => setLanguage("en")} aria-pressed={language === "en"}>EN</button>
-    <button className={language === "id" ? "active" : ""} onClick={() => setLanguage("id")} aria-pressed={language === "id"}>ID</button>
+    {(["en", "id"] as PortalLanguage[]).map((code) => <button key={code} className={language === code ? "active" : ""} onClick={() => setLanguage(code)} aria-pressed={language === code}>
+      {language === code && <motion.i className="language-switch-indicator" layoutId="pucuk-language-indicator" transition={reduceMotion ? {duration:0} : {type:"spring",stiffness:520,damping:38,mass:.7}}/>}
+      <span>{code.toUpperCase()}</span>
+    </button>)}
   </div>;
 }
 
@@ -481,17 +484,55 @@ function NextActionGuide({ action, title, copy, complete, showContinue, onContin
 
 function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }: { selected: Role; setSelected: (role: Role) => void; language: PortalLanguage; setLanguage: (language: PortalLanguage) => void; onBack: () => void; onLogin: () => void }) {
   const profile = profiles[selected];
+  const reduceMotion = useReducedMotion();
   return <main className="role-entry-page">
     <header className="role-entry-header"><button className="role-entry-back" onClick={onBack}><Icon name="arrow"/>Kembali</button><div className="landing-logo"><i><Icon name="leaf"/></i><strong>Pucuk</strong></div><LanguageSwitch language={language} setLanguage={setLanguage}/></header>
     <motion.section className="auth-card role-entry-card" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:.35,ease:"easeOut"}}>
       <p className="portal-kicker">PILIH PORTAL ANDA</p><h2>Satu alur transaksi, pengalaman yang tepat untuk setiap peran.</h2><p>Setiap akun hanya melihat data dan tindakan yang sesuai dengan perannya.</p>
-      <div className="identity-list">{(Object.keys(profiles) as Role[]).map((role) => <motion.button layout whileHover={{y:-2}} whileTap={{scale:.98}} key={role} className={selected === role ? "selected" : ""} onClick={() => setSelected(role)}>
-        <span>{profiles[role].initials}</span><div><strong>{role}</strong><small>{profiles[role].description}</small></div>{selected === role && <Icon name="check"/>}
+      <div className="identity-list">{(Object.keys(profiles) as Role[]).map((role) => <motion.button
+        layout
+        initial="rest"
+        animate="rest"
+        whileHover="hover"
+        whileFocus="hover"
+        whileTap="press"
+        variants={{
+          rest: { y: 0, scale: 1 },
+          hover: reduceMotion ? { y: 0 } : { y: -3 },
+          press: reduceMotion ? { scale: 1 } : { scale: .985 },
+        }}
+        transition={{ type: "spring", stiffness: 360, damping: 28, mass: .7 }}
+        key={role}
+        className={selected === role ? "selected" : ""}
+        onClick={() => setSelected(role)}
+      >
+        <motion.i
+          aria-hidden="true"
+          className="identity-role-highlight"
+          variants={{
+            rest: {
+              opacity: 0,
+              scale: 1,
+              transition: { duration: reduceMotion ? .1 : .24, ease: "easeOut" },
+            },
+            hover: {
+              opacity: 1,
+              scale: 1,
+              transition: { duration: reduceMotion ? .12 : .4, ease: [.22, 1, .36, 1] },
+            },
+            press: {
+              opacity: 1,
+              scale: 1,
+              transition: { duration: reduceMotion ? .1 : .22, ease: "easeOut" },
+            },
+          }}
+        />
+        <span>{profiles[role].initials}</span><div><strong>{role}</strong><small>{profiles[role].description}</small></div><AnimatePresence initial={false}>{selected === role && <motion.i className="identity-selection-check" initial={reduceMotion ? {opacity:0} : {opacity:0,scale:.72,filter:"blur(4px)"}} animate={{opacity:1,scale:1,filter:"blur(0px)"}} exit={reduceMotion ? {opacity:0} : {opacity:0,scale:.78,filter:"blur(3px)"}} transition={{duration:reduceMotion ? .08 : .2,ease:"easeOut"}}><Icon name="check"/></motion.i>}</AnimatePresence>
       </motion.button>)}</div>
       <form onSubmit={(event) => { event.preventDefault(); onLogin(); }}>
         <label>Email<input value={profile.email} readOnly/></label>
         <label>Kata sandi<input type="password" value="pucukproof" readOnly/></label>
-        <button className="portal-primary" type="submit">Masuk sebagai {selected}<Icon name="arrow"/></button>
+        <button className="portal-primary" type="submit"><AnimatePresence mode="popLayout" initial={false}><motion.span className="login-role-label" key={selected} initial={reduceMotion ? {opacity:0} : {opacity:0,y:5,filter:"blur(4px)"}} animate={{opacity:1,y:0,filter:"blur(0px)"}} exit={reduceMotion ? {opacity:0} : {opacity:0,y:-4,filter:"blur(3px)"}} transition={{duration:reduceMotion ? .08 : .2,ease:"easeOut"}}>Masuk sebagai {selected}</motion.span></AnimatePresence><Icon name="arrow"/></button>
       </form>
       <div className="auth-selected"><span>{profile.initials}</span><div><strong>{profile.name}</strong><small>{profile.org}</small></div></div>
     </motion.section>

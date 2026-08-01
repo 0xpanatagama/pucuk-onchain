@@ -75,7 +75,7 @@ const english: Record<string, string> = {
   "Demo transaksi daun teh · Pembayaran dalam IDR": "Tea-leaf transaction demo · Payments in IDR",
   "MASUK KE PORTAL": "SIGN IN TO PORTAL",
   "Pilih identitas demo": "Choose a demo identity",
-  "Setiap akun hanya melihat data dan tindakan yang sesuai dengan perannya.": "Each account only sees the data and actions relevant to its role.",
+  "Setiap akun hanya melihat data dan tindakan yang sesuai dengan perannya.": "Access the specific metrics and actions relevant to your part of the supply chain.",
   "Email": "Email",
   "Kata sandi": "Password",
   "Masuk sebagai": "Sign in as",
