@@ -177,7 +177,7 @@ export default function PortalClient() {
   const [language, setLanguage] = useState<PortalLanguage>("en");
   const [entryStep, setEntryStep] = useState<"landing" | "login">("landing");
   const [session, setSession] = useState<Role | null>(null);
-  const [selected, setSelected] = useState<Role>("Operator");
+  const [selected, setSelected] = useState<Role | null>(null);
   const [screen, setScreen] = useState<Screen>("home");
   const [paid, setPaid] = useState(false);
   const [disputed, setDisputed] = useState(false);
@@ -388,8 +388,9 @@ export default function PortalClient() {
   }, []);
 
   if (!session) {
-    if (entryStep === "landing") return <Landing language={language} setLanguage={setLanguage} onEnter={() => setEntryStep("login")} />;
+    if (entryStep === "landing") return <Landing language={language} setLanguage={setLanguage} onEnter={() => { setSelected(null); setEntryStep("login"); }} />;
     return <Login selected={selected} setSelected={setSelected} language={language} setLanguage={setLanguage} onBack={() => setEntryStep("landing")} onLogin={() => {
+      if (!selected) return;
       setSession(selected);
       setScreen("home");
     }} />;
@@ -438,10 +439,10 @@ export default function PortalClient() {
         if (item.screen === "intake") setIntakeStep(1);
       }}><Icon name={item.icon}/><span>{item.label}</span>{item.badge && <b>{item.badge}</b>}</button>)}</nav>
       <div className="portal-user"><span>{profile.initials}</span><div><strong>{profile.name}</strong><small>{session} · Demo</small></div></div>
-      <button className="portal-logout" onClick={() => { setEntryStep("login"); setSession(null); }}><Icon name="logout" />Keluar & ganti akun</button>
+      <button className="portal-logout" onClick={() => { setSelected(null); setEntryStep("login"); setSession(null); }}><Icon name="logout" />Keluar & ganti akun</button>
     </aside>
     <main className="portal-main">
-      <header className={`portal-header ${headerScrolled ? "scrolled" : ""}`}><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a><button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button><button className="mobile-role-switch" onClick={() => setSession(null)} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
+      <header className={`portal-header ${headerScrolled ? "scrolled" : ""}`}><div><small>{portalTitle}</small><strong>{profile.name}</strong></div><div className="header-actions"><LanguageSwitch language={language} setLanguage={setLanguage}/><a className={`network-pill ${chainError ? "error" : ""}`} href={chain?.explorerUrl || "https://sepolia.basescan.org/address/0x18708aE53414044F7651D7aA4982494bcb2E21b2"} target="_blank" rel="noreferrer"><i/>{chainBusy ? "Mengirim transaksi…" : chainError ? "Koneksi perlu diperiksa" : "Transaksi aktif"}</a><button className="demo-reset" onClick={startNewDemo} disabled={chainBusy}><Icon name="plus"/><span>Mulai demo baru</span></button><button className="mobile-role-switch" onClick={() => { setSelected(null); setEntryStep("login"); setSession(null); }} aria-label="Keluar dan ganti akun"><Icon name="logout"/><span>Ganti akun</span></button></div></header>
       {(chain || chainError) && <div className={`chain-strip ${chainError ? "error" : ""}`}><span><Icon name={chainError ? "alert" : "shield"}/>{chainError ? chainError : `Demo ${demoId.slice(-12)} · ${stateLabel(receiptState)}`}</span>{chain?.transactions.at(-1) && <a href={chain.transactions.at(-1)?.url} target="_blank" rel="noreferrer">Lihat transaksi terakhir <Icon name="arrow"/></a>}</div>}
       {visibleBanner && <NextActionGuide action={visibleBanner.action} title={visibleBanner.title} copy={visibleBanner.copy} complete={Boolean(visibleCompletion)} showContinue={Boolean(visibleCompletion && visibleBanner.action.role !== session)} onContinue={() => continueWorkflow(visibleBanner.action)}/>}
       {actionError && screen !== "payments" && <div className="action-error role-scoped"><Icon name="alert"/><span><b>Action failed for {activeReceiptLabel}</b>{actionError.message}</span></div>}
@@ -485,8 +486,8 @@ function NextActionGuide({ action, title, copy, complete, showContinue, onContin
   </section>;
 }
 
-function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }: { selected: Role; setSelected: (role: Role) => void; language: PortalLanguage; setLanguage: (language: PortalLanguage) => void; onBack: () => void; onLogin: () => void }) {
-  const profile = profiles[selected];
+function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }: { selected: Role | null; setSelected: (role: Role | null) => void; language: PortalLanguage; setLanguage: (language: PortalLanguage) => void; onBack: () => void; onLogin: () => void }) {
+  const profile = selected ? profiles[selected] : null;
   const reduceMotion = useReducedMotion();
   return <main className="role-entry-page">
     <header className="role-entry-header"><button className="role-entry-back" onClick={onBack}><Icon name="arrow"/>Kembali</button><div className="landing-logo"><i><Icon name="leaf"/></i><strong>Pucuk</strong></div><LanguageSwitch language={language} setLanguage={setLanguage}/></header>
@@ -495,18 +496,21 @@ function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }
       <div className="identity-list">{(Object.keys(profiles) as Role[]).map((role) => <motion.button
         layout
         initial="rest"
-        animate="rest"
+        animate={selected === role ? "selected" : "rest"}
         whileHover="hover"
         whileFocus="hover"
         whileTap="press"
         variants={{
           rest: { y: 0, scale: 1 },
+          selected: { y: 0, scale: 1 },
           hover: reduceMotion ? { y: 0 } : { y: -3 },
           press: reduceMotion ? { scale: 1 } : { scale: .985 },
         }}
         transition={{ type: "spring", stiffness: 360, damping: 28, mass: .7 }}
         key={role}
         className={selected === role ? "selected" : ""}
+        type="button"
+        aria-pressed={selected === role}
         onClick={() => setSelected(role)}
       >
         <motion.i
@@ -517,6 +521,11 @@ function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }
               opacity: 0,
               scale: 1,
               transition: { duration: reduceMotion ? .1 : .24, ease: "easeOut" },
+            },
+            selected: {
+              opacity: 1,
+              scale: 1,
+              transition: { duration: reduceMotion ? .1 : .32, ease: [.22, 1, .36, 1] },
             },
             hover: {
               opacity: 1,
@@ -530,14 +539,14 @@ function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }
             },
           }}
         />
-        <span>{profiles[role].initials}</span><div><strong>{role}</strong><small>{profiles[role].description}</small></div><AnimatePresence initial={false}>{selected === role && <motion.i className="identity-selection-check" initial={reduceMotion ? {opacity:0} : {opacity:0,scale:.72,filter:"blur(4px)"}} animate={{opacity:1,scale:1,filter:"blur(0px)"}} exit={reduceMotion ? {opacity:0} : {opacity:0,scale:.78,filter:"blur(3px)"}} transition={{duration:reduceMotion ? .08 : .2,ease:"easeOut"}}><Icon name="check"/></motion.i>}</AnimatePresence>
+        <span>{profiles[role].initials}</span><div><strong>{role}</strong><small>{profiles[role].description}</small></div>
       </motion.button>)}</div>
-      <form onSubmit={(event) => { event.preventDefault(); onLogin(); }}>
-        <label>Email<input value={profile.email} readOnly/></label>
-        <label>Kata sandi<input type="password" value="pucukproof" readOnly/></label>
-        <button className="portal-primary" type="submit"><AnimatePresence mode="popLayout" initial={false}><motion.span className="login-role-label" key={selected} initial={reduceMotion ? {opacity:0} : {opacity:0,y:5,filter:"blur(4px)"}} animate={{opacity:1,y:0,filter:"blur(0px)"}} exit={reduceMotion ? {opacity:0} : {opacity:0,y:-4,filter:"blur(3px)"}} transition={{duration:reduceMotion ? .08 : .2,ease:"easeOut"}}>Masuk sebagai {selected}</motion.span></AnimatePresence><Icon name="arrow"/></button>
+      <form onSubmit={(event) => { event.preventDefault(); if (selected) onLogin(); }}>
+        <label>Email<input value={profile?.email ?? ""} placeholder="Pilih peran terlebih dahulu" readOnly/></label>
+        <label>Kata sandi<input type="password" value={profile ? "pucukproof" : ""} placeholder="Pilih peran terlebih dahulu" readOnly/></label>
+        <button className="portal-primary" type="submit" disabled={!selected}><AnimatePresence mode="popLayout" initial={false}><motion.span className="login-role-label" key={selected ?? "empty"} initial={reduceMotion ? {opacity:0} : {opacity:0,y:5,filter:"blur(4px)"}} animate={{opacity:1,y:0,filter:"blur(0px)"}} exit={reduceMotion ? {opacity:0} : {opacity:0,y:-4,filter:"blur(3px)"}} transition={{duration:reduceMotion ? .08 : .2,ease:"easeOut"}}>{selected ? `Masuk sebagai ${selected}` : "Pilih peran untuk melanjutkan"}</motion.span></AnimatePresence><Icon name="arrow"/></button>
       </form>
-      <div className="auth-selected"><span>{profile.initials}</span><div><strong>{profile.name}</strong><small>{profile.org}</small></div></div>
+      <div className={`auth-selected ${profile ? "" : "empty"}`}>{profile ? <><span>{profile.initials}</span><div><strong>{profile.name}</strong><small>{profile.org}</small></div></> : <><span>?</span><div><strong>Pilih salah satu portal</strong><small>Detail akun demo akan muncul di sini.</small></div></>}</div>
     </motion.section>
   </main>;
 }
