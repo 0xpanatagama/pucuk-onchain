@@ -98,6 +98,9 @@ const english: Record<string, string> = {
   "Blok Utara · KB-01": "North Plot · KB-01",
   "Blok Sungai · KB-02": "River Plot · KB-02",
   "Blok Lereng · KB-03": "Hillside Plot · KB-03",
+  "Blok Utara": "North Plot",
+  "Blok Sungai": "River Plot",
+  "Blok Lereng": "Hillside Plot",
   "7 hari": "7 days",
   "30 hari": "30 days",
   "12 minggu": "12 weeks",
@@ -105,6 +108,10 @@ const english: Record<string, string> = {
   "Diperbarui 27 Jul · 16:48": "Updated 27 Jul · 16:48",
   "Data tanda terima": "Receipt data",
   "Riwayat petani": "Farmer history",
+  "Data demo": "Demo data",
+  "OPERASI PENERIMAAN": "INTAKE OPERATIONS",
+  "Pantau penerimaan daun dari satu tempat": "Monitor leaf intake from one place",
+  "Lihat volume, kecepatan verifikasi, kelengkapan bukti, dan pengecualian operasional dalam cakupan yang sama.": "See volume, verification speed, evidence completeness, and operational exceptions within the same scope.",
   "BERAT DITERIMA": "WEIGHT RECEIVED",
   "7 tanda terima": "7 receipts",
   "12 tanda terima": "12 receipts",
@@ -133,6 +140,25 @@ const english: Record<string, string> = {
   "Lengkap": "Complete",
   "Perlu foto": "Photo required",
   "Gagal dicatat": "Failed to record",
+  "BATCH AKTIF": "ACTIVE BATCHES",
+  "Dalam proses hari ini": "In progress today",
+  "MENUNGGU VERIFIKASI": "AWAITING VERIFICATION",
+  "Konfirmasi petani": "Farmer confirmation",
+  "PENGECUALIAN": "EXCEPTIONS",
+  "Bukti atau kualitas": "Evidence or quality",
+  "2 baru": "2 new",
+  "−1 hari ini": "−1 today",
+  "Lengkapi bukti": "Complete evidence",
+  "Periksa kualitas": "Review quality",
+  "Siap dikirim": "Ready to dispatch",
+  "Antrean mock mengikuti cakupan dan periode yang dipilih": "The demo queue follows the selected scope and period",
+  "Geser atau ketuk grafik untuk melihat nilai.": "Move, tap, or drag across the chart to inspect values.",
+  "1 tanda terima": "1 receipt",
+  "1 tanda terima dalam cakupan": "1 receipt in scope",
+  "1 item": "1 item",
+  "2 item": "2 items",
+  "3 item": "3 items",
+  "4 item": "4 items",
   "Buka tanda terima untuk menyelesaikan tahap berikutnya": "Open a receipt to complete the next step",
   "PERLU KONFIRMASI": "CONFIRMATION REQUIRED",
   "Periksa hasil penerimaan Anda": "Review your intake result",
@@ -155,6 +181,22 @@ const english: Record<string, string> = {
   "Tidak ada tunggakan": "No outstanding balance",
   "tertunda": "pending",
   "MEDIAN PEMBAYARAN": "MEDIAN PAYMENT",
+  "RINGKASAN PETANI": "FARMER OVERVIEW",
+  "Panen, kualitas, dan pembayaran Anda": "Your harvest, quality, and payments",
+  "Pantau hasil panen tercatat, estimasi pendapatan, status pengiriman, dan riwayat pembayaran dalam satu tampilan.": "Monitor recorded harvests, estimated income, delivery status, and payment history in one view.",
+  "VOLUME PANEN": "HARVEST VOLUME",
+  "ESTIMASI PENDAPATAN": "ESTIMATED INCOME",
+  "Dari persetujuan": "From approval",
+  "Mock pembayaran dalam cakupan yang dipilih": "Demo payments within the selected scope",
+  "Setoran 27 Juli": "27 July delivery",
+  "Setoran 20 Juli": "20 July delivery",
+  "Setoran 13 Juli": "13 July delivery",
+  "Setoran 6 Juli": "6 July delivery",
+  "Tertunda": "Pending",
+  "Dibayar": "Paid",
+  "lunas": "paid",
+  "poin": "points",
+  "periode ini": "this period",
   "hari terakhir": "last days",
   "Ada data yang perlu dikoreksi?": "Is there data that needs correcting?",
   "PENGADAAN & KEWAJIBAN": "PROCUREMENT & LIABILITIES",
@@ -162,6 +204,29 @@ const english: Record<string, string> = {
   "Setujui kewajiban komersial terlebih dahulu. Pembayaran IDR dicatat setelah transaksi benar-benar dilakukan.": "Approve the commercial liability first. Record the IDR payment after it is actually completed.",
   "Buka pembayaran": "Open payments",
   "Data pengadaan Pucuk": "Pucuk procurement data",
+  "KINERJA PABRIK": "FACTORY PERFORMANCE",
+  "Ubah pasokan masuk menjadi output yang terukur": "Turn incoming supply into measurable output",
+  "Pantau pasokan, hasil proses, pemakaian kapasitas, mutu, persediaan, dan output produksi dalam satu cakupan operasional.": "Monitor supply, processing yield, capacity use, quality, inventory, and production output within one operational scope.",
+  "Data produksi demo": "Demo production data",
+  "PASOKAN MASUK": "INCOMING SUPPLY",
+  "HASIL PROSES": "PROCESSING YIELD",
+  "terproses": "processed",
+  "UTILISASI KAPASITAS": "CAPACITY UTILIZATION",
+  "Dari kapasitas harian": "Of daily capacity",
+  "Stabil": "Stable",
+  "OUTPUT PRODUKSI": "PRODUCTION OUTPUT",
+  "persediaan": "inventory",
+  "Pasokan dan output produksi": "Supply and production output",
+  "Pasokan masuk": "Incoming supply",
+  "Output produksi": "Production output",
+  "Kinerja kualitas": "Quality performance",
+  "Di luar grade": "Off grade",
+  "Batch masuk terbaru": "Latest incoming batches",
+  "Mock batch mengikuti cakupan dan periode yang dipilih": "Demo batches follow the selected scope and period",
+  "Siap diproses": "Ready to process",
+  "Uji kualitas": "Quality testing",
+  "Menunggu bukti": "Awaiting evidence",
+  "Selesai": "Complete",
   "DAUN DITERIMA": "LEAVES RECEIVED",
   "HARGA RATA-RATA": "AVERAGE PRICE",
   "MENUNGGU PERSETUJUAN": "AWAITING APPROVAL",
@@ -178,6 +243,30 @@ const english: Record<string, string> = {
   "Konsistensi pemasok": "Supplier consistency",
   "Kelengkapan bukti per titik koleksi": "Evidence completeness by collection point",
   "PUSAT AUDIT PILOT": "PILOT AUDIT CENTER",
+  "Pastikan setiap transaksi dapat ditelusuri": "Ensure every transaction is traceable",
+  "Pantau cakupan ketertelusuran, status verifikasi, isu kepatuhan, anomali data, dan riwayat audit tanpa membuka data di luar kewenangan.": "Monitor traceability coverage, verification status, compliance issues, data anomalies, and audit history without exposing unauthorized data.",
+  "CAKUPAN KETERTELUSURAN": "TRACEABILITY COVERAGE",
+  "TERVERIFIKASI": "VERIFIED",
+  "Terverifikasi": "Verified",
+  "1 bukti": "1 evidence",
+  "Hash dan bukti cocok": "Hash and evidence matched",
+  "ISU KEPATUHAN": "COMPLIANCE ISSUES",
+  "Memerlukan tinjauan": "Requires review",
+  "1 prioritas tinggi": "1 high priority",
+  "ANOMALI DATA": "DATA ANOMALIES",
+  "Selisih atau bukti": "Discrepancy or evidence",
+  "−2 dari periode lalu": "−2 from previous period",
+  "Cakupan verifikasi": "Verification coverage",
+  "Bukti belum lengkap": "Incomplete evidence",
+  "Riwayat audit": "Audit history",
+  "Mock aktivitas mengikuti cakupan dan periode yang dipilih": "Demo activity follows the selected scope and period",
+  "Verifikasi PP-2026-000042": "Verification PP-2026-000042",
+  "Tinjauan PP-2026-000039": "Review PP-2026-000039",
+  "Rekonsiliasi PP-2026-000036": "Reconciliation PP-2026-000036",
+  "Selisih 1 kg": "1 kg discrepancy",
+  "Investigasi": "Investigating",
+  "Menunggu": "Pending",
+  "Ditutup": "Closed",
   "Bukti, sengketa, dan rekonsiliasi": "Evidence, disputes, and reconciliation",
   "Setiap akses auditor dicatat. Data pribadi hanya dibuka bila diperlukan untuk pemeriksaan.": "Every auditor access is logged. Personal data is only revealed when required for review.",
   "Verifikasi tanda terima": "Verify receipt",
@@ -415,6 +504,7 @@ const english: Record<string, string> = {
 const originalText = new WeakMap<Text, string>();
 const lastAppliedText = new WeakMap<Text, string>();
 const originalAttributes = new WeakMap<Element, Map<string, string>>();
+const lastAppliedAttributes = new WeakMap<Element, Map<string, string>>();
 const attributes = ["aria-label", "placeholder", "title"];
 
 function translateValue(value: string, language: PortalLanguage) {
@@ -426,7 +516,11 @@ function translateValue(value: string, language: PortalLanguage) {
   if (english[content]) return `${leading}${english[content]}${trailing}`;
   let translated = content;
   for (const [source, target] of Object.entries(english).sort((a, b) => b[0].length - a[0].length)) {
-    if (translated.includes(source)) translated = translated.replaceAll(source, target);
+    if (!translated.includes(source)) continue;
+    const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const startBoundary = /^[\p{L}\p{N}]/u.test(source) ? "(?<![\\p{L}\\p{N}])" : "";
+    const endBoundary = /[\p{L}\p{N}]$/u.test(source) ? "(?![\\p{L}\\p{N}])" : "";
+    translated = translated.replace(new RegExp(`${startBoundary}${escaped}${endBoundary}`, "gu"), target);
   }
   return `${leading}${translated}${trailing}`;
 }
@@ -449,15 +543,27 @@ export function localizePortal(root: HTMLElement, language: PortalLanguage) {
 
   for (const element of root.querySelectorAll<HTMLElement>("*")) {
     let saved = originalAttributes.get(element);
+    let outputs = lastAppliedAttributes.get(element);
     if (!saved) {
       saved = new Map();
       originalAttributes.set(element, saved);
     }
+    if (!outputs) {
+      outputs = new Map();
+      lastAppliedAttributes.set(element, outputs);
+    }
     for (const attribute of attributes) {
       const current = element.getAttribute(attribute);
-      if (current !== null && !saved.has(attribute)) saved.set(attribute, current);
+      const previousOutput = outputs.get(attribute);
+      if (current !== null && (!saved.has(attribute) || (previousOutput !== undefined && current !== previousOutput))) {
+        saved.set(attribute, current);
+      }
       const source = saved.get(attribute);
-      if (source !== undefined) element.setAttribute(attribute, translateValue(source, language));
+      if (source !== undefined) {
+        const next = translateValue(source, language);
+        if (current !== next) element.setAttribute(attribute, next);
+        outputs.set(attribute, next);
+      }
     }
   }
   root.lang = language;

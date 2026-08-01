@@ -74,6 +74,9 @@ const scaledSeries = (values: number[], factor: number, offset = 0) => values.ma
   const scopeShape = 1 + (factor - 1) * .14 * Math.sin((index + 1) * 1.23);
   return Number(Math.max(0, value * factor * scopeShape + offset * Math.sin(index * 1.7)).toFixed(2));
 });
+const chartFactor = (filters: DashboardFilters, options: string[]) => .74 + scopeFactor(filters.scope, options) * .26;
+const activityLimit = (range: DashboardFilters["range"]) => range === "7d" ? 2 : range === "30d" ? 3 : 4;
+const formatDecimal = (value: number, digits = 1) => value.toLocaleString("id-ID", {maximumFractionDigits:digits});
 const nextActionFor = (state: ReceiptState): NextAction => ({
   Draft: {
     role: "Operator",
@@ -543,12 +546,16 @@ function PageHead({ kicker, title, copy, action }: { kicker: string; title: stri
   return <div className="portal-page-head"><div><p className="portal-kicker">{kicker}</p><h1>{title}</h1><p>{copy}</p></div>{action}</div>;
 }
 
-function Metric({ icon, label, value, note, tone = "green" }: { icon: string; label: string; value: string; note: string; tone?: string }) {
-  return <motion.article className="portal-metric" whileHover={{y:-3,boxShadow:"0 12px 28px rgba(24,61,45,.08)"}} transition={{duration:.18}}><i className={tone}><Icon name={icon}/></i><div><small>{label}</small><strong>{value}</strong><p>{note}</p></div></motion.article>;
+function Metric({ icon, label, value, note, tone = "green", change, progress = 68 }: { icon: string; label: string; value: string; note: string; tone?: string; change?: string; progress?: number }) {
+  return <motion.article className={`portal-metric metric-${tone}`} whileHover={{y:-3,boxShadow:"0 18px 38px rgba(24,61,45,.09)"}} transition={{duration:.18}}>
+    <i className={tone}><Icon name={icon}/></i>
+    <div className="metric-copy"><small>{label}</small><strong>{value}</strong><div className="metric-context"><p>{note}</p>{change && <em>{change}</em>}</div></div>
+    <span className="metric-rail" aria-hidden="true"><i style={{width:`${Math.max(4,Math.min(100,progress))}%`}}/></span>
+  </motion.article>;
 }
 
 function AnalyticsControls({ scope, options, filters, onChange }: { scope: string; options: string[]; filters: DashboardFilters; onChange: (filters: DashboardFilters) => void }) {
-  return <div className="analytics-controls"><label><span>CAKUPAN</span><select aria-label="Cakupan data" value={filters.scope} onChange={(event) => onChange({...filters, scope:event.target.value})}>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label><span>PERIODE</span><select aria-label="Rentang tanggal" value={filters.range} onChange={(event) => onChange({...filters, range:event.target.value as DashboardFilters["range"]})}>{periodOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><div className="analytics-fresh"><i/><span><b>{scope}</b><small>{periodLabel[filters.range]} · Diperbarui 27 Jul · 16:48</small></span></div></div>;
+  return <div className="analytics-controls"><span className="analytics-demo-badge"><Icon name="shield"/>Data demo</span><label><span>CAKUPAN</span><select aria-label="Cakupan data" value={filters.scope} onChange={(event) => onChange({...filters, scope:event.target.value})}>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label><label><span>PERIODE</span><select aria-label="Rentang tanggal" value={filters.range} onChange={(event) => onChange({...filters, range:event.target.value as DashboardFilters["range"]})}>{periodOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><div className="analytics-fresh"><i/><span><b>{scope}</b><small>{periodLabel[filters.range]} · Diperbarui 27 Jul · 16:48</small></span></div></div>;
 }
 
 function TrendChart({ title, subtitle, data, second, legend = ["Aktual"], suffix = "" }: { title: string; subtitle: string; data: number[]; second?: number[]; legend?: string[]; suffix?: string }) {
@@ -622,9 +629,25 @@ function TrendChart({ title, subtitle, data, second, legend = ["Aktual"], suffix
   </div></section>;
 }
 
+function BreakdownDonut({ title, subtitle, rows, centerLabel = "Total" }: { title: string; subtitle: string; rows: { label: string; value: number; display: string }[]; centerLabel?: string }) {
+  const palette = ["#153f2f", "#77a98a", "#b9d9e8", "#c8f05a"];
+  const total = Math.max(1, rows.reduce((sum, row) => sum + Math.max(0,row.value), 0));
+  let cursor = 0;
+  const stops = rows.map((row, index) => {
+    const start = cursor;
+    cursor += Math.max(0,row.value) / total * 100;
+    return `${palette[index % palette.length]} ${start}% ${cursor}%`;
+  }).join(",");
+  const largest = rows.reduce((best, row) => row.value > best.value ? row : best, rows[0] || {label:centerLabel,value:0,display:"0"});
+  return <section className="portal-card analytics-donut"><div className="chart-head"><div><h2>{title}</h2><p>{subtitle}</p></div></div><div className="donut-layout"><div className="donut-chart" role="img" aria-label={`${title}: ${rows.map((row) => `${row.label} ${row.display}`).join(", ")}`} style={{background:`conic-gradient(${stops})`}}><div><strong>{Math.round(largest.value/total*100)}%</strong><span>{centerLabel}</span></div></div><div className="donut-legend">{rows.map((row,index) => <div key={row.label}><i style={{background:palette[index % palette.length]}}/><span><b>{row.label}</b><small>{Math.round(row.value/total*100)}%</small></span><strong>{row.display}</strong></div>)}</div></div></section>;
+}
+
 function RankedBars({ title, subtitle, rows }: { title: string; subtitle: string; rows: { label: string; value: number; display: string; tone?: string }[] }) {
-  const max = Math.max(...rows.map((row) => row.value));
-  return <section className="portal-card analytics-bars"><div className="chart-head"><div><h2>{title}</h2><p>{subtitle}</p></div></div><div className="bar-list">{rows.map((row) => <div className="bar-row" key={row.label}><span>{row.label}</span><div><i className={row.tone || ""} style={{width:`${Math.max(8,row.value/max*100)}%`}}/></div><b>{row.display}</b></div>)}</div></section>;
+  return <BreakdownDonut title={title} subtitle={subtitle} rows={rows} centerLabel={rows[0]?.label || "Total"}/>;
+}
+
+function AnalyticsActivity({ title, subtitle, items, onOpen }: { title: string; subtitle: string; items: { initials: string; title: string; note: string; value: string; status: string; tone?: string }[]; onOpen?: () => void }) {
+  return <section className="portal-card analytics-activity"><div className="portal-card-head"><div><h2>{title}</h2><p>{subtitle}</p></div><span>{items.length} data</span></div><div className="activity-list">{items.map((item) => <button key={`${item.title}-${item.note}`} type="button" onClick={onOpen}><span className="mini-avatar">{item.initials}</span><span><b>{item.title}</b><small>{item.note}</small></span><strong>{item.value}</strong><em className={`portal-status ${item.tone || "blue"}`}>{item.status}</em><Icon name="arrow"/></button>)}</div></section>;
 }
 
 function AlertList({ title, subtitle, items }: { title: string; subtitle: string; items: { tone: string; title: string; note: string; status: string }[] }) {
@@ -646,9 +669,23 @@ function OperatorHome({ onIntake, onReceipt }: { onIntake: () => void; onReceipt
   const options = ["Semua titik koleksi","Cisarua · CP-01","Pangalengan · CP-02","Ciwidey · CP-03"];
   const [filters, setFilters] = useState<DashboardFilters>({scope:options[0],range:"12w"});
   const factor = demoFactor(filters, options);
-  const receipts = scaled(14, factor);
-  const complete = Math.max(0, receipts - scaled(2, factor));
-  return <div className="portal-content"><PageHead kicker="PENERIMAAN HARI INI" title="Selesaikan catatan sebelum petani pulang" copy="Pastikan berat, kualitas, harga, dan foto bukti lengkap sebelum meminta persetujuan." action={<button className="portal-primary" onClick={onIntake}><Icon name="plus"/>Penerimaan baru</button>}/><AnalyticsControls scope={`${filters.scope} · Data tanda terima`} options={options} filters={filters} onChange={setFilters}/><div className="portal-metrics analytics-kpis farmer-kpis"><Metric icon="leaf" label="BERAT DITERIMA" value={`${(318.4*factor).toLocaleString("id-ID",{maximumFractionDigits:1})} kg`} note={`${scaled(7,factor)} tanda terima`}/><Metric icon="file" label="DRAF BELUM SELESAI" value={String(scaled(2,factor))} note="Lanjutkan pencatatan" tone="amber"/><Metric icon="shield" label="MENUNGGU PETANI" value={String(scaled(3,factor))} note="Sudah dikirim"/><Metric icon="alert" label="BUKTI TIDAK LENGKAP" value={String(scaled(1,factor))} note="Foto timbangan" tone="amber"/></div><div className="analytics-grid"><TrendChart title="Median waktu penerimaan" subtitle={`Menit dari timbang hingga dikirim ke petani · ${periodLabel[filters.range]}`} data={scaledSeries([8.2,7.8,7.4,7.1,6.8,6.4,6.2,5.9,5.7,5.5,5.2,4.9],.82+scopeFactor(filters.scope,options)*.18,.18)} legend={["Waktu proses"]} suffix=" menit"/><RankedBars title="Kelengkapan bukti" subtitle={`${receipts} tanda terima dalam periode terpilih`} rows={[{label:"Lengkap",value:complete,display:String(complete)},{label:"Perlu foto",value:scaled(1,factor),display:String(scaled(1,factor)),tone:"amber"},{label:"Gagal dicatat",value:scaled(1,factor),display:String(scaled(1,factor)),tone:"blue"}]}/></div><section className="portal-card"><div className="portal-card-head"><div><h2>Perlu tindakan</h2><p>Buka tanda terima untuk menyelesaikan tahap berikutnya</p></div></div><ReceiptRows onOpen={onReceipt} operator/></section>
+  const receipts = Math.max(1,scaled(14, factor));
+  const needsPhoto = Math.min(receipts,scaled(2, factor));
+  const failed = Math.min(Math.max(0,receipts-needsPhoto),scaled(1, factor));
+  const complete = Math.max(0,receipts-needsPhoto-failed);
+  const intakeWeight = 318.4*factor;
+  const queue = [
+    {initials:"SR",title:"Sari Rahayu",note:"Cisarua · PP-2026-000042",value:"42,50 kg",status:"Lengkapi bukti",tone:"amber"},
+    {initials:"DI",title:"Dedi Irawan",note:"Pangalengan · PP-2026-000041",value:"38,20 kg",status:"Menunggu petani",tone:"blue"},
+    {initials:"LM",title:"Lina Marlina",note:"Ciwidey · PP-2026-000040",value:"46,10 kg",status:"Periksa kualitas",tone:"amber"},
+    {initials:"AR",title:"Agus Rahman",note:"Cisarua · PP-2026-000038",value:"35,70 kg",status:"Siap dikirim",tone:"green"},
+  ].filter((item) => filters.scope === options[0] || item.note.includes(filters.scope.split(" · ")[0])).slice(0,activityLimit(filters.range));
+  return <div className="portal-content analytics-dashboard operator-dashboard">
+    <PageHead kicker="OPERASI PENERIMAAN" title="Pantau penerimaan daun dari satu tempat" copy="Lihat volume, kecepatan verifikasi, kelengkapan bukti, dan pengecualian operasional dalam cakupan yang sama." action={<button className="portal-primary" onClick={onIntake}><Icon name="plus"/>Penerimaan baru</button>}/>
+    <AnalyticsControls scope={`${filters.scope} · Data tanda terima`} options={options} filters={filters} onChange={setFilters}/>
+    <div className="portal-metrics analytics-kpis"><Metric icon="leaf" label="BERAT DITERIMA" value={`${formatDecimal(intakeWeight)} kg`} note={`${receipts} tanda terima`} change="+8,6%" progress={82}/><Metric icon="file" label="BATCH AKTIF" value={String(Math.max(1,scaled(6,factor)))} note="Dalam proses hari ini" change="2 baru" progress={68}/><Metric icon="shield" label="MENUNGGU VERIFIKASI" value={String(Math.max(0,scaled(3,factor)))} note="Konfirmasi petani" tone="blue" change="−1 hari ini" progress={54}/><Metric icon="alert" label="PENGECUALIAN" value={String(needsPhoto+failed)} note="Bukti atau kualitas" tone="amber" change="Perlu tindakan" progress={31}/></div>
+    <div className="analytics-grid analytics-primary"><TrendChart title="Median waktu penerimaan" subtitle={`Menit dari timbang hingga dikirim ke petani · ${periodLabel[filters.range]}`} data={scaledSeries([8.2,7.8,7.4,7.1,6.8,6.4,6.2,5.9,5.7,5.5,5.2,4.9],chartFactor(filters,options),.18)} legend={["Waktu proses"]} suffix=" menit"/><BreakdownDonut title="Kelengkapan bukti" subtitle={`${receipts} tanda terima dalam cakupan`} centerLabel="Lengkap" rows={[{label:"Lengkap",value:complete,display:String(complete)},{label:"Perlu foto",value:needsPhoto,display:String(needsPhoto)},{label:"Gagal dicatat",value:failed,display:String(failed)}]}/></div>
+    <AnalyticsActivity title="Perlu tindakan" subtitle="Antrean mock mengikuti cakupan dan periode yang dipilih" items={queue} onOpen={onReceipt}/>
   </div>;
 }
 
@@ -658,11 +695,28 @@ function FarmerHome({ paid, state, proofUrl, onAgree, onReject, onReceipt, onDis
   const factor = demoFactor(filters, options);
   const receiptValue = scaled(964000, factor);
   const paidValue = paid ? receiptValue : scaled(receiptValue,.8);
-  return <div className="portal-content farmer-mobile"><PageHead kicker="PERLU KONFIRMASI" title="Periksa hasil penerimaan Anda" copy="Setujui hanya jika berat, kualitas, dan harga di bawah ini sudah benar."/><section className="portal-card confirmation-card"><div className="confirmation-top"><div><small>TANDA TERIMA PP-2026-000042</small><h2>Setoran 27 Juli 2026</h2><p>Nadia Anwar · Titik Koleksi Cisarua</p></div><i className={`portal-status ${state === "AwaitingFarmer" ? "amber" : "green"}`}>{state === "AwaitingFarmer" ? "Menunggu persetujuan Anda" : stateLabel(state)}</i></div><div className="confirmation-facts"><p><span>Berat diterima</span><b>42,50 kg</b></p><p><span>Hasil kualitas</span><b>Grade B · Pucuk halus 68%</b></p><p><span>Harga dasar</span><b>Rp2.200/kg</b></p><p><span>Premi kualitas</span><b className="good">+Rp100/kg</b></p><p><span>Potongan</span><b className="bad">−Rp50/kg</b></p><p className="total"><span>Yang akan dibayarkan</span><b>Rp95.625</b></p></div>{state === "AwaitingFarmer" && <div className="confirmation-actions"><button className="portal-secondary" onClick={onReject}>Tidak setuju</button><button className="portal-primary" onClick={onAgree}><Icon name="check"/>Setuju, data sudah benar</button></div>}<button className="technical-link" onClick={onReceipt}>Lihat bukti dan detail transaksi <Icon name="arrow"/></button><a className="connection-note" href={proofUrl} target="_blank" rel="noreferrer"><i/><span><b>Transaksi sudah tercatat</b><small>Buka dan periksa catatan publik transaksi ini.</small></span><Icon name="arrow"/></a></section><AnalyticsControls scope={`${filters.scope} · Riwayat petani`} options={options} filters={filters} onChange={setFilters}/><div className="portal-metrics analytics-kpis farmer-kpis"><Metric icon="leaf" label="DAUN TERCATAT" value={`${(428.6*factor).toLocaleString("id-ID",{maximumFractionDigits:1})} kg`} note={periodLabel[filters.range]}/><Metric icon="wallet" label="NILAI TANDA TERIMA" value={money(receiptValue)} note={`${scaled(12,factor)} tanda terima`}/><Metric icon="check" label="SUDAH DIBAYAR" value={money(paidValue)} note={paid ? "Tidak ada tunggakan" : `${money(receiptValue-paidValue)} tertunda`}/><Metric icon="file" label="MEDIAN PEMBAYARAN" value={`${(2.4+(1-scopeFactor(filters.scope,options))*.8).toFixed(1)} hari`} note={periodLabel[filters.range]} tone="blue"/></div><div className="analytics-grid"><TrendChart title="Volume panen tercatat" subtitle={`Kilogram per minggu · ${periodLabel[filters.range]}`} data={scaledSeries([28,31,30,36,34,39,41,38,44,46,43,49],factor,.8)} legend={["Volume panen"]} suffix=" kg"/><RankedBars title="Kualitas hasil panen" subtitle={`${filters.scope} · ${periodLabel[filters.range]}`} rows={[{label:"Grade A",value:scaled(38,factor),display:`${scaled(38,factor)} kg`},{label:"Grade B",value:scaled(54,factor),display:`${scaled(54,factor)} kg`,tone:"blue"},{label:"Perlu tinjau",value:scaled(8,factor),display:`${scaled(8,factor)} kg`,tone:"amber"}]}/></div><button className="link-button farmer-correction" onClick={onDispute}>Ada data yang perlu dikoreksi?</button>
+  const recordedWeight = Math.max(1,Math.round(428.6*factor));
+  const gradeA = Math.round(recordedWeight*.36);
+  const gradeB = Math.round(recordedWeight*.56);
+  const reviewWeight = Math.max(0,recordedWeight-gradeA-gradeB);
+  const paymentDays = 2.4+(1-scopeFactor(filters.scope,options))*.8;
+  const history = [
+    {initials:"27",title:"Setoran 27 Juli",note:"Blok Utara · PP-2026-000042",value:"Rp95.625",status:paid?"Dibayar":"Tertunda",tone:paid?"green":"amber"},
+    {initials:"20",title:"Setoran 20 Juli",note:"Blok Sungai · PP-2026-000037",value:"Rp88.400",status:"Dibayar",tone:"green"},
+    {initials:"13",title:"Setoran 13 Juli",note:"Blok Lereng · PP-2026-000031",value:"Rp102.150",status:"Dibayar",tone:"green"},
+    {initials:"06",title:"Setoran 6 Juli",note:"Blok Utara · PP-2026-000026",value:"Rp91.275",status:"Dibayar",tone:"green"},
+  ].filter((item) => filters.scope === options[0] || item.note.includes(filters.scope.split(" · ")[0])).slice(0,activityLimit(filters.range));
+  return <div className="portal-content farmer-mobile analytics-dashboard farmer-dashboard">
+    <PageHead kicker="RINGKASAN PETANI" title="Panen, kualitas, dan pembayaran Anda" copy="Pantau hasil panen tercatat, estimasi pendapatan, status pengiriman, dan riwayat pembayaran dalam satu tampilan."/>
+    <AnalyticsControls scope={`${filters.scope} · Riwayat petani`} options={options} filters={filters} onChange={setFilters}/>
+    <div className="portal-metrics analytics-kpis"><Metric icon="leaf" label="VOLUME PANEN" value={`${formatDecimal(recordedWeight)} kg`} note={periodLabel[filters.range]} change="+11,2%" progress={84}/><Metric icon="wallet" label="ESTIMASI PENDAPATAN" value={money(receiptValue)} note={`${Math.max(1,scaled(12,factor))} tanda terima`} change="+6,8%" progress={76}/><Metric icon="check" label="SUDAH DIBAYAR" value={money(paidValue)} note={paid ? "Tidak ada tunggakan" : `${money(receiptValue-paidValue)} tertunda`} change={paid?"Lunas":"80% lunas"} progress={paid?100:80}/><Metric icon="file" label="MEDIAN PEMBAYARAN" value={`${paymentDays.toFixed(1)} hari`} note="Dari persetujuan" tone="blue" change="−0,4 hari" progress={72}/></div>
+    <div className="analytics-grid analytics-primary"><TrendChart title="Volume panen tercatat" subtitle={`Kilogram per minggu · ${periodLabel[filters.range]}`} data={scaledSeries([28,31,30,36,34,39,41,38,44,46,43,49],chartFactor(filters,options),.8)} legend={["Volume panen"]} suffix=" kg"/><BreakdownDonut title="Kualitas hasil panen" subtitle={`${filters.scope} · ${periodLabel[filters.range]}`} centerLabel="Grade B" rows={[{label:"Grade A",value:gradeA,display:`${gradeA} kg`},{label:"Grade B",value:gradeB,display:`${gradeB} kg`},{label:"Perlu tinjau",value:reviewWeight,display:`${reviewWeight} kg`}]}/></div>
+    <div className="dashboard-lower-grid"><section className="portal-card confirmation-card"><div className="confirmation-top"><div><small>TANDA TERIMA PP-2026-000042</small><h2>Setoran 27 Juli 2026</h2><p>Nadia Anwar · Titik Koleksi Cisarua</p></div><i className={`portal-status ${state === "AwaitingFarmer" ? "amber" : "green"}`}>{state === "AwaitingFarmer" ? "Menunggu persetujuan Anda" : stateLabel(state)}</i></div><div className="confirmation-facts"><p><span>Berat diterima</span><b>42,50 kg</b></p><p><span>Hasil kualitas</span><b>Grade B · Pucuk halus 68%</b></p><p><span>Harga dasar</span><b>Rp2.200/kg</b></p><p><span>Premi kualitas</span><b className="good">+Rp100/kg</b></p><p><span>Potongan</span><b className="bad">−Rp50/kg</b></p><p className="total"><span>Yang akan dibayarkan</span><b>Rp95.625</b></p></div>{state === "AwaitingFarmer" && <div className="confirmation-actions"><button className="portal-secondary" onClick={onReject}>Tidak setuju</button><button className="portal-primary" onClick={onAgree}><Icon name="check"/>Setuju, data sudah benar</button></div>}<button className="technical-link" onClick={onReceipt}>Lihat bukti dan detail transaksi <Icon name="arrow"/></button><a className="connection-note" href={proofUrl} target="_blank" rel="noreferrer"><i/><span><b>Transaksi sudah tercatat</b><small>Buka dan periksa catatan publik transaksi ini.</small></span><Icon name="arrow"/></a></section><AnalyticsActivity title="Riwayat pembayaran" subtitle="Mock pembayaran dalam cakupan yang dipilih" items={history}/></div>
+    <button className="link-button farmer-correction" onClick={onDispute}>Ada data yang perlu dikoreksi?</button>
   </div>;
 }
 
-function FactoryHome({ paid, state, proofUrl, onApprove, onPayments, onReceipt }: { paid: boolean; state: ReceiptState; proofUrl?: string; onApprove: () => void; onPayments: () => void; onReceipt: () => void }) {
+function FactoryHomeLegacy({ paid, state, proofUrl, onApprove, onPayments, onReceipt }: { paid: boolean; state: ReceiptState; proofUrl?: string; onApprove: () => void; onPayments: () => void; onReceipt: () => void }) {
   const options = ["Semua titik koleksi","Cisarua · CP-01","Pangalengan · CP-02","Ciwidey · CP-03"];
   const [filters, setFilters] = useState<DashboardFilters>({scope:options[0],range:"30d"});
   const factor = demoFactor(filters, options);
@@ -671,7 +725,7 @@ function FactoryHome({ paid, state, proofUrl, onApprove, onPayments, onReceipt }
   </div>;
 }
 
-function AuditorHome({ disputed, onVerify, onDispute }: { disputed: boolean; onVerify: () => void; onDispute: () => void }) {
+function AuditorHomeLegacy({ disputed, onVerify, onDispute }: { disputed: boolean; onVerify: () => void; onDispute: () => void }) {
   const options = ["Seluruh pilot · 18 petani","Koperasi Pucuk Sejahtera","Pabrik Teh Nusantara","Titik Koleksi Cisarua"];
   const [filters, setFilters] = useState<DashboardFilters>({scope:options[0],range:"12w"});
   const factor = demoFactor(filters, options);
@@ -685,6 +739,64 @@ function AuditorHome({ disputed, onVerify, onDispute }: { disputed: boolean; onV
     {tone:"ok",title:"Rekonsiliasi jaringan terakhir",note:`${matched} hash aplikasi cocok dengan registry`,status:"Sehat"},
   ].slice(0,filters.range==="7d"?2:3);
   return <div className="portal-content"><PageHead kicker="PUSAT AUDIT PILOT" title="Bukti, sengketa, dan rekonsiliasi" copy="Setiap akses auditor dicatat. Data pribadi hanya dibuka bila diperlukan untuk pemeriksaan." action={<button className="portal-primary" onClick={onVerify}><Icon name="shield"/>Verifikasi tanda terima</button>}/><AnalyticsControls scope={`${filters.scope} · Setiap akses auditor dicatat`} options={options} filters={filters} onChange={setFilters}/><div className="portal-metrics analytics-kpis farmer-kpis"><Metric icon="shield" label="TANDA TERIMA TERDAFTAR" value={String(registered)} note={periodLabel[filters.range]}/><Metric icon="check" label="HASH COCOK" value={`${matched} / ${registered}`} note={`${mismatches} perlu rekonsiliasi`}/><Metric icon="file" label="BUKTI LENGKAP" value={`${complete} / ${registered}`} note={`${registered?((complete/registered)*100).toFixed(1):"0"}%`}/><Metric icon="alert" label="SENGKETA TERBUKA" value={String(scaled(disputed?2:1,factor))} note="Urut usia & risiko" tone="amber"/></div><div className="analytics-grid"><TrendChart title="Tanda terima terdaftar" subtitle={`Jumlah per minggu · ${periodLabel[filters.range]}`} data={scaledSeries([2,3,2,4,3,4,3,5,4,4,3,5],factor,.25)} legend={["Terdaftar"]}/><RankedBars title="Status assurance" subtitle={`${registered} tanda terima dalam cakupan`} rows={[{label:"Hash cocok",value:matched,display:String(matched)},{label:"Bukti lengkap",value:complete,display:String(complete),tone:"blue"},{label:"Perlu rekonsiliasi",value:mismatches,display:String(mismatches),tone:"amber"}]}/></div><AlertList title="Kasus prioritas" subtitle="Buka kasus untuk membandingkan catatan awal dan usulan koreksi" items={alerts}/><button className="portal-primary audit-case-cta" onClick={onDispute}>Tinjau sengketa dan bukti<Icon name="arrow"/></button>
+  </div>;
+}
+
+function FactoryHome({ paid, state, proofUrl, onApprove, onPayments, onReceipt }: { paid: boolean; state: ReceiptState; proofUrl?: string; onApprove: () => void; onPayments: () => void; onReceipt: () => void }) {
+  const options = ["Semua titik koleksi","Cisarua · CP-01","Pangalengan · CP-02","Ciwidey · CP-03"];
+  const [filters, setFilters] = useState<DashboardFilters>({scope:options[0],range:"30d"});
+  const factor = demoFactor(filters, options);
+  const sourceFactor = scopeFactor(filters.scope, options);
+  const rangeFactor = periodFactor[filters.range];
+  const supplyKg = 1284.6*factor;
+  const yieldRate = Math.min(94,78.2+sourceFactor*3.2+rangeFactor*1.1);
+  const productionKg = supplyKg*yieldRate/100;
+  const capacity = Math.min(96,61+sourceFactor*18+rangeFactor*3.4);
+  const gradeA = Math.round(supplyKg*.46);
+  const gradeB = Math.round(supplyKg*.39);
+  const offGrade = Math.max(0,Math.round(supplyKg)-gradeA-gradeB);
+  const batches = [
+    {initials:"CI",title:"Batch Cisarua 042",note:"Cisarua · 27 Jul · Grade B",value:"318,4 kg",status:"Siap diproses",tone:"green"},
+    {initials:"PA",title:"Batch Pangalengan 039",note:"Pangalengan · 26 Jul · Grade A",value:"286,7 kg",status:"Uji kualitas",tone:"blue"},
+    {initials:"CW",title:"Batch Ciwidey 036",note:"Ciwidey · 25 Jul · Grade B",value:"241,9 kg",status:"Menunggu bukti",tone:"amber"},
+    {initials:"CI",title:"Batch Cisarua 033",note:"Cisarua · 24 Jul · Grade A",value:"305,6 kg",status:"Selesai",tone:"green"},
+  ].filter((item) => filters.scope === options[0] || item.note.includes(filters.scope.split(" · ")[0])).slice(0,activityLimit(filters.range));
+  return <div className="portal-content analytics-dashboard factory-dashboard">
+    <PageHead kicker="KINERJA PABRIK" title="Ubah pasokan masuk menjadi output yang terukur" copy="Pantau pasokan, hasil proses, pemakaian kapasitas, mutu, persediaan, dan output produksi dalam satu cakupan operasional." action={<button className="portal-primary" onClick={onPayments}>Buka pembayaran<Icon name="arrow"/></button>}/>
+    <AnalyticsControls scope={`${filters.scope} · Data produksi demo`} options={options} filters={filters} onChange={setFilters}/>
+    <div className="portal-metrics analytics-kpis"><Metric icon="leaf" label="PASOKAN MASUK" value={`${formatDecimal(supplyKg)} kg`} note={`${Math.max(1,scaled(37,factor))} tanda terima`} change="+9,4%" progress={86}/><Metric icon="check" label="HASIL PROSES" value={`${formatDecimal(yieldRate)}%`} note={`${formatDecimal(productionKg)} kg terproses`} change="+1,8 poin" progress={yieldRate}/><Metric icon="shield" label="UTILISASI KAPASITAS" value={`${Math.round(capacity)}%`} note="Dari kapasitas harian" tone="blue" change="Stabil" progress={capacity}/><Metric icon="file" label="OUTPUT PRODUKSI" value={`${formatDecimal(productionKg)} kg`} note={`${formatDecimal(productionKg*.32)} kg persediaan`} change="+7,1%" progress={79}/></div>
+    <div className="analytics-grid analytics-primary"><TrendChart title="Pasokan dan output produksi" subtitle={`Kilogram per minggu · ${periodLabel[filters.range]}`} data={scaledSeries([88,96,91,108,104,116,112,124,119,131,128,139],chartFactor(filters,options),1.2)} second={scaledSeries([69,76,72,85,82,92,88,99,94,105,101,112],chartFactor(filters,options),1)} legend={["Pasokan masuk","Output produksi"]} suffix=" kg"/><BreakdownDonut title="Kinerja kualitas" subtitle={`${filters.scope} · ${periodLabel[filters.range]}`} centerLabel="Grade A" rows={[{label:"Grade A",value:gradeA,display:`${gradeA} kg`},{label:"Grade B",value:gradeB,display:`${gradeB} kg`},{label:"Di luar grade",value:offGrade,display:`${offGrade} kg`}]}/></div>
+    <div className="dashboard-lower-grid"><section className="portal-card liability-card"><div><small>KEWAJIBAN PP-2026-000042</small><h2>42,50 kg · Grade B · Rp95.625</h2><p>Operator dan petani telah menyetujui data yang sama. Catatan transaksi sudah tersimpan.</p></div><i className="portal-status blue">{stateLabel(state)}</i><div className="liability-actions"><button onClick={onReceipt}>Periksa bukti</button><a className="proof-action" href={proofUrl} target="_blank" rel="noreferrer">Lihat transaksi <Icon name="arrow"/></a>{state === "Registered" && <button className="portal-primary" onClick={onApprove}>Setujui kewajiban</button>}{state === "Approved" && <button className="portal-primary" onClick={onPayments}>Catat pembayaran IDR</button>}</div></section><AnalyticsActivity title="Batch masuk terbaru" subtitle="Mock batch mengikuti cakupan dan periode yang dipilih" items={batches} onOpen={onReceipt}/></div>
+  </div>;
+}
+
+function AuditorHome({ disputed, onVerify, onDispute }: { disputed: boolean; onVerify: () => void; onDispute: () => void }) {
+  const options = ["Seluruh pilot · 18 petani","Koperasi Pucuk Sejahtera","Pabrik Teh Nusantara","Titik Koleksi Cisarua"];
+  const [filters, setFilters] = useState<DashboardFilters>({scope:options[0],range:"12w"});
+  const factor = demoFactor(filters, options);
+  const registered = Math.max(1,scaled(42,factor));
+  const mismatches = Math.min(registered,Math.max(1,scaled(1,factor)));
+  const evidenceMissing = Math.min(Math.max(0,registered-mismatches),scaled(3,factor));
+  const verified = Math.max(0,registered-mismatches-evidenceMissing);
+  const matched = Math.max(0,registered-mismatches);
+  const coverage = Math.min(100,Math.round(verified/registered*100+8));
+  const alerts = [
+    {tone:"warn",title:"PP-2026-000039 · selisih berat",note:"42,50 kg awal · 41,50 kg diusulkan",status:"Tinjau"},
+    {tone:"info",title:"PP-2026-000036 · bukti belum lengkap",note:"Foto timbangan belum tersedia",status:"Minta bukti"},
+    {tone:"ok",title:"Rekonsiliasi jaringan terakhir",note:`${matched} hash aplikasi cocok dengan registry`,status:"Sehat"},
+  ].slice(0,filters.range==="7d"?2:3);
+  const auditHistory = [
+    {initials:"AK",title:"Verifikasi PP-2026-000042",note:"Titik Koleksi Cisarua · 27 Jul",value:"Hash cocok",status:"Terverifikasi",tone:"green"},
+    {initials:"RM",title:"Tinjauan PP-2026-000039",note:"Koperasi Pucuk Sejahtera · 26 Jul",value:"Selisih 1 kg",status:"Investigasi",tone:"amber"},
+    {initials:"AK",title:"Rekonsiliasi PP-2026-000036",note:"Pabrik Teh Nusantara · 25 Jul",value:"1 bukti",status:"Menunggu",tone:"blue"},
+    {initials:"DS",title:"Audit PP-2026-000033",note:"Titik Koleksi Cisarua · 24 Jul",value:"Lengkap",status:"Ditutup",tone:"green"},
+  ].filter((item) => filters.scope === options[0] || item.note.includes(filters.scope.split(" · ")[0])).slice(0,activityLimit(filters.range));
+  return <div className="portal-content analytics-dashboard auditor-dashboard">
+    <PageHead kicker="PUSAT AUDIT PILOT" title="Pastikan setiap transaksi dapat ditelusuri" copy="Pantau cakupan ketertelusuran, status verifikasi, isu kepatuhan, anomali data, dan riwayat audit tanpa membuka data di luar kewenangan." action={<button className="portal-primary" onClick={onVerify}><Icon name="shield"/>Verifikasi tanda terima</button>}/>
+    <AnalyticsControls scope={`${filters.scope} · Setiap akses auditor dicatat`} options={options} filters={filters} onChange={setFilters}/>
+    <div className="portal-metrics analytics-kpis"><Metric icon="shield" label="CAKUPAN KETERTELUSURAN" value={`${coverage}%`} note={`${registered} tanda terima`} change="+2,1 poin" progress={coverage}/><Metric icon="check" label="TERVERIFIKASI" value={`${verified} / ${registered}`} note="Hash dan bukti cocok" change="+6 periode ini" progress={verified/registered*100}/><Metric icon="alert" label="ISU KEPATUHAN" value={String(Math.max(1,scaled(disputed?3:2,factor)))} note="Memerlukan tinjauan" tone="amber" change="1 prioritas tinggi" progress={34}/><Metric icon="file" label="ANOMALI DATA" value={String(mismatches)} note="Selisih atau bukti" tone="blue" change="−2 dari periode lalu" progress={22}/></div>
+    <div className="analytics-grid analytics-primary"><TrendChart title="Cakupan verifikasi" subtitle={`Jumlah per minggu · ${periodLabel[filters.range]}`} data={scaledSeries([3,4,4,5,5,6,6,7,7,8,8,9],chartFactor(filters,options),.2)} second={scaledSeries([2,3,3,4,4,5,5,6,6,7,7,8],chartFactor(filters,options),.18)} legend={["Terdaftar","Terverifikasi"]}/><BreakdownDonut title="Status assurance" subtitle={`${registered} tanda terima dalam cakupan`} centerLabel="Terverifikasi" rows={[{label:"Terverifikasi",value:verified,display:String(verified)},{label:"Bukti belum lengkap",value:evidenceMissing,display:String(evidenceMissing)},{label:"Perlu rekonsiliasi",value:mismatches,display:String(mismatches)}]}/></div>
+    <div className="dashboard-lower-grid"><AlertList title="Kasus prioritas" subtitle="Buka kasus untuk membandingkan catatan awal dan usulan koreksi" items={alerts}/><AnalyticsActivity title="Riwayat audit" subtitle="Mock aktivitas mengikuti cakupan dan periode yang dipilih" items={auditHistory} onOpen={onVerify}/></div><button className="portal-primary audit-case-cta" onClick={onDispute}>Tinjau sengketa dan bukti<Icon name="arrow"/></button>
   </div>;
 }
 
