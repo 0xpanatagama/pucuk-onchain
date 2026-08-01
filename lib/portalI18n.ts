@@ -70,7 +70,7 @@ const english: Record<string, string> = {
   "Pucuk menyatukan catatan berat, kualitas, harga, pembayaran, dan bukti transaksi dalam satu alur yang dapat dipercaya semua pihak.": "Pucuk brings weight, quality, price, payment, and transaction evidence into one flow every party can trust.",
   "Masuk ke portal": "Enter the portal",
   "Ketertelusuran": "Traceability",
-  "secepat kilat.": "at the speed of light",
+  "secepat kilat.": "at the Speed of Light",
   "Menyatukan bukti ke dalam satu alur mulus yang dapat dipercaya semua pihak.": "Bringing evidence into one seamless flow every party can trust.",
   "Jelajahi": "Explore",
   "Demo transaksi daun teh": "Tea transaction demo",

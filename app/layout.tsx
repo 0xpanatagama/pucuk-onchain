@@ -4,17 +4,17 @@ import "./portal.css";
 import "./gallery-system.css";
 
 export const metadata: Metadata = {
-  title: "Pucuk - Traceability at the speed of light",
+  title: "Pucuk - Traceability at the Speed of Light",
   description: "Bringing evidence into one seamless flow every party can trust.",
   openGraph: {
-    title: "Pucuk - Traceability at the speed of light",
+    title: "Pucuk - Traceability at the Speed of Light",
     description: "Bringing evidence into one seamless flow every party can trust.",
     siteName: "Pucuk",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "Pucuk - Traceability at the speed of light",
+    title: "Pucuk - Traceability at the Speed of Light",
     description: "Bringing evidence into one seamless flow every party can trust.",
   },
 };
