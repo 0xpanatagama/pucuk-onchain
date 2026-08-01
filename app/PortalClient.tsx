@@ -469,9 +469,9 @@ function Landing({ language, setLanguage, onEnter }: { language: PortalLanguage;
     </header>
     <motion.section className="landing-copy" initial={{opacity:0}} animate={{opacity:1}} transition={{duration:.55,ease:"easeOut"}}>
       <p className="landing-kicker">CATAT · SEPAKATI · BAYAR</p>
-      <h1><span>Setiap daun tercatat.</span><span>Setiap pembayaran jelas.</span></h1>
-      <p>Pucuk menyatukan catatan berat, kualitas, harga, pembayaran, dan bukti transaksi dalam satu alur yang dapat dipercaya semua pihak.</p>
-      <button onClick={onEnter}>Masuk ke portal <Icon name="arrow"/></button>
+      <h1><span>Ketertelusuran</span><span>secepat kilat.</span></h1>
+      <p>Menyatukan bukti ke dalam satu alur mulus yang dapat dipercaya semua pihak.</p>
+      <button onClick={onEnter}>Jelajahi <Icon name="arrow"/></button>
     </motion.section>
     <footer className="landing-footer"><span>Demo transaksi daun teh</span><span>Pembayaran dalam IDR</span></footer>
   </main>;
@@ -491,7 +491,7 @@ function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }
   return <main className="role-entry-page">
     <header className="role-entry-header"><button className="role-entry-back" onClick={onBack}><Icon name="arrow"/>Kembali</button><div className="landing-logo"><i><Icon name="leaf"/></i><strong>Pucuk</strong></div><LanguageSwitch language={language} setLanguage={setLanguage}/></header>
     <motion.section className="auth-card role-entry-card" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:.35,ease:"easeOut"}}>
-      <p className="portal-kicker">PILIH PORTAL ANDA</p><h2>Satu alur transaksi, pengalaman yang tepat untuk setiap peran.</h2><p>Setiap akun hanya melihat data dan tindakan yang sesuai dengan perannya.</p>
+      <p className="portal-kicker">PILIH PORTAL ANDA</p><h2><span>Setiap daun tercatat.</span><span>Setiap pembayaran jelas.</span></h2><p>Setiap akun hanya melihat data dan tindakan yang sesuai dengan perannya.</p>
       <div className="identity-list">{(Object.keys(profiles) as Role[]).map((role) => <motion.button
         layout
         initial="rest"
