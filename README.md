@@ -1,6 +1,6 @@
-# Pucuk Pilot
+# Lattice Pilot
 
-Pucuk is a shared transaction record for tea-leaf deliveries. The web product
+Lattice is a shared transaction record for tea-leaf deliveries. The web product
 and smart contract model the same commercial lifecycle across operator, farmer,
 factory, and auditor roles.
 
