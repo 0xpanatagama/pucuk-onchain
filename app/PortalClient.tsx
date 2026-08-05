@@ -29,10 +29,10 @@ type ToastState = { text: string; tone: "success" | "info" | "error" } | null;
 
 const DEFAULT_DEMO_ID = "PP-2026-000042-v1";
 const profiles: Record<Role, { name: string; email: string; org: string; initials: string; description: string }> = {
-  Operator: { name: "Nadia Anwar", email: "nadia@pucuk.demo", org: "Titik Koleksi Cisarua", initials: "NA", description: "Catat penerimaan dan pemeriksaan daun" },
-  Petani: { name: "Sari Rahayu", email: "sari@pucuk.demo", org: "Koperasi Pucuk Sejahtera", initials: "SR", description: "Tinjau receipt dan status pembayaran" },
-  Pabrik: { name: "Rizky Pratama", email: "rizky@pucuk.demo", org: "Pabrik Teh Nusantara", initials: "RP", description: "Setujui kewajiban dan catat pembayaran" },
-  Auditor: { name: "Ayu Kusuma", email: "ayu@pucuk.demo", org: "Tim Audit Pilot", initials: "AK", description: "Verifikasi bukti dan selesaikan sengketa" },
+  Operator: { name: "Nadia Anwar", email: "nadia@lattice.demo", org: "Titik Koleksi Cisarua", initials: "NA", description: "Catat penerimaan dan pemeriksaan daun" },
+  Petani: { name: "Sari Rahayu", email: "sari@lattice.demo", org: "Koperasi Lattice Sejahtera", initials: "SR", description: "Tinjau receipt dan status pembayaran" },
+  Pabrik: { name: "Rizky Pratama", email: "rizky@lattice.demo", org: "Pabrik Teh Nusantara", initials: "RP", description: "Setujui kewajiban dan catat pembayaran" },
+  Auditor: { name: "Ayu Kusuma", email: "ayu@lattice.demo", org: "Tim Audit Pilot", initials: "AK", description: "Verifikasi bukti dan selesaikan sengketa" },
 };
 
 const nav: Record<Role, { screen: Screen; label: string; icon: string; badge?: string }[]> = {
@@ -441,7 +441,7 @@ export default function PortalClient() {
   return <div className={`portal-shell role-${session.toLowerCase()}`}>
     <AnimatePresence>{toast && <motion.div className={`portal-toast ${toast.tone}`} initial={{opacity:0,y:-14,scale:.96}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-10,scale:.98}}><Icon name={toast.tone === "error" ? "alert" : toast.tone === "info" ? "arrow" : "check"} />{toast.text}</motion.div>}</AnimatePresence>
     <aside className="portal-sidebar">
-      <button className="portal-logo" onClick={() => setScreen("home")}><i><Icon name="leaf" /></i><strong>Pucuk</strong></button>
+      <button className="portal-logo" onClick={() => setScreen("home")}><i><Icon name="leaf" /></i><strong>Lattice</strong></button>
       <div className="portal-identity"><span>{profile.initials}</span><div><small>ANDA MASUK KE</small><strong>{portalTitle}</strong><em>{profile.org}</em></div></div>
       <nav><p>KHUSUS {session.toUpperCase()}</p>{nav[session].map((item) => <button key={item.screen} className={screen === item.screen ? "active" : ""} onClick={() => {
         setScreen(item.screen);
@@ -474,7 +474,7 @@ function Landing({ language, setLanguage, onEnter }: { language: PortalLanguage;
   return <main className="pucuk-landing">
     <div className="landing-landscape" aria-hidden="true"/>
     <header className="landing-header">
-      <div className="landing-logo"><i><Icon name="leaf"/></i><strong>Pucuk</strong></div>
+      <div className="landing-logo"><i><Icon name="leaf"/></i><strong>Lattice</strong></div>
       <LanguageSwitch language={language} setLanguage={setLanguage}/>
     </header>
     <motion.section className="landing-copy" initial={{opacity:0}} animate={{opacity:1}} transition={{duration:.55,ease:"easeOut"}}>
@@ -499,7 +499,7 @@ function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }
   const profile = selected ? profiles[selected] : null;
   const reduceMotion = useReducedMotion();
   return <main className="role-entry-page">
-    <header className="role-entry-header"><button className="role-entry-back" onClick={onBack}><Icon name="arrow"/>Kembali</button><div className="landing-logo"><i><Icon name="leaf"/></i><strong>Pucuk</strong></div><LanguageSwitch language={language} setLanguage={setLanguage}/></header>
+    <header className="role-entry-header"><button className="role-entry-back" onClick={onBack}><Icon name="arrow"/>Kembali</button><div className="landing-logo"><i><Icon name="leaf"/></i><strong>Lattice</strong></div><LanguageSwitch language={language} setLanguage={setLanguage}/></header>
     <motion.section className="auth-card role-entry-card" initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{duration:.35,ease:"easeOut"}}>
       <p className="portal-kicker">PILIH PORTAL ANDA</p><h2><span>Setiap daun tercatat.</span><span>Setiap pembayaran jelas.</span></h2><p>Setiap akun hanya melihat data dan tindakan yang sesuai dengan perannya.</p>
       <div className="identity-list">{(Object.keys(profiles) as Role[]).map((role) => <motion.button
@@ -552,7 +552,7 @@ function Login({ selected, setSelected, language, setLanguage, onBack, onLogin }
       </motion.button>)}</div>
       <form onSubmit={(event) => { event.preventDefault(); if (selected) onLogin(); }}>
         <label>Email<input value={profile?.email ?? ""} placeholder="Pilih peran terlebih dahulu" readOnly/></label>
-        <label>Kata sandi<input type="password" value={profile ? "pucukproof" : ""} placeholder="Pilih peran terlebih dahulu" readOnly/></label>
+        <label>Kata sandi<input type="password" value={profile ? "latticeproof" : ""} placeholder="Pilih peran terlebih dahulu" readOnly/></label>
         <button className="portal-primary" type="submit" disabled={!selected}><AnimatePresence mode="popLayout" initial={false}><motion.span className="login-role-label" key={selected ?? "empty"} initial={reduceMotion ? {opacity:0} : {opacity:0,y:5,filter:"blur(4px)"}} animate={{opacity:1,y:0,filter:"blur(0px)"}} exit={reduceMotion ? {opacity:0} : {opacity:0,y:-4,filter:"blur(3px)"}} transition={{duration:reduceMotion ? .08 : .2,ease:"easeOut"}}>{selected ? `Masuk sebagai ${selected}` : "Pilih peran untuk melanjutkan"}</motion.span></AnimatePresence><Icon name="arrow"/></button>
       </form>
       <div className={`auth-selected ${profile ? "" : "empty"}`}>{profile ? <><span>{profile.initials}</span><div><strong>{profile.name}</strong><small>{profile.org}</small></div></> : <><span>?</span><div><strong>Pilih salah satu portal</strong><small>Detail akun demo akan muncul di sini.</small></div></>}</div>
@@ -739,12 +739,12 @@ function FactoryHomeLegacy({ paid, state, proofUrl, onApprove, onPayments, onRec
   const [filters, setFilters] = useState<DashboardFilters>({scope:options[0],range:"30d"});
   const factor = demoFactor(filters, options);
   const pendingValue = scaled(617900,factor);
-  return <div className="portal-content"><PageHead kicker="PENGADAAN & KEWAJIBAN" title="Tanda terima yang perlu diputuskan" copy="Setujui kewajiban komersial terlebih dahulu. Pembayaran IDR dicatat setelah transaksi benar-benar dilakukan." action={<button className="portal-primary" onClick={onPayments}>Buka pembayaran<Icon name="arrow"/></button>}/><AnalyticsControls scope={`${filters.scope} · Data pengadaan Pucuk`} options={options} filters={filters} onChange={setFilters}/><div className="portal-metrics analytics-kpis farmer-kpis"><Metric icon="leaf" label="DAUN DITERIMA" value={`${(1284.6*factor).toLocaleString("id-ID",{maximumFractionDigits:1})} kg`} note={`${scaled(37,factor)} tanda terima`}/><Metric icon="wallet" label="HARGA RATA-RATA" value={`${money(Math.round(2284*(.96+scopeFactor(filters.scope,options)*.04)))}/kg`} note={periodLabel[filters.range]}/><Metric icon="shield" label="MENUNGGU PERSETUJUAN" value={String(scaled(3,factor))} note={money(pendingValue)} tone="amber"/><Metric icon="file" label="BELUM LUNAS" value={String(scaled(paid?2:3,factor))} note={money(paid?scaled(522275,factor):pendingValue)} tone="blue"/></div><section className="portal-card liability-card"><div><small>KEWAJIBAN PP-2026-000042</small><h2>42,50 kg · Grade B · Rp95.625</h2><p>Operator dan petani telah menyetujui data yang sama. Catatan transaksi sudah tersimpan.</p></div><i className="portal-status blue">{stateLabel(state)}</i><div className="liability-actions"><button onClick={onReceipt}>Periksa bukti</button><a className="proof-action" href={proofUrl} target="_blank" rel="noreferrer">Lihat transaksi <Icon name="arrow"/></a>{state === "Registered" && <button className="portal-primary" onClick={onApprove}>Setujui kewajiban</button>}{state === "Approved" && <button className="portal-primary" onClick={onPayments}>Catat pembayaran IDR</button>}</div></section><div className="analytics-grid"><TrendChart title="Nilai pengadaan tercatat" subtitle={`Juta rupiah per minggu · ${periodLabel[filters.range]}`} data={scaledSeries([1.8,2.0,1.9,2.2,2.1,2.3,2.25,2.4,2.3,2.5,2.45,2.62],factor,.06)} legend={["Nilai tanda terima"]} suffix=" jt"/><RankedBars title="Konsistensi pemasok" subtitle={`${filters.scope} · Kelengkapan bukti`} rows={[{label:"Cisarua",value:Math.round(98*scopeFactor(filters.scope,options)),display:`${Math.round(98*scopeFactor(filters.scope,options))}%`},{label:"Pangalengan",value:Math.round(94*scopeFactor(filters.scope,options)),display:`${Math.round(94*scopeFactor(filters.scope,options))}%`,tone:"blue"},{label:"Ciwidey",value:Math.round(89*scopeFactor(filters.scope,options)),display:`${Math.round(89*scopeFactor(filters.scope,options))}%`,tone:"amber"}]}/></div>
+  return <div className="portal-content"><PageHead kicker="PENGADAAN & KEWAJIBAN" title="Tanda terima yang perlu diputuskan" copy="Setujui kewajiban komersial terlebih dahulu. Pembayaran IDR dicatat setelah transaksi benar-benar dilakukan." action={<button className="portal-primary" onClick={onPayments}>Buka pembayaran<Icon name="arrow"/></button>}/><AnalyticsControls scope={`${filters.scope} · Data pengadaan Lattice`} options={options} filters={filters} onChange={setFilters}/><div className="portal-metrics analytics-kpis farmer-kpis"><Metric icon="leaf" label="DAUN DITERIMA" value={`${(1284.6*factor).toLocaleString("id-ID",{maximumFractionDigits:1})} kg`} note={`${scaled(37,factor)} tanda terima`}/><Metric icon="wallet" label="HARGA RATA-RATA" value={`${money(Math.round(2284*(.96+scopeFactor(filters.scope,options)*.04)))}/kg`} note={periodLabel[filters.range]}/><Metric icon="shield" label="MENUNGGU PERSETUJUAN" value={String(scaled(3,factor))} note={money(pendingValue)} tone="amber"/><Metric icon="file" label="BELUM LUNAS" value={String(scaled(paid?2:3,factor))} note={money(paid?scaled(522275,factor):pendingValue)} tone="blue"/></div><section className="portal-card liability-card"><div><small>KEWAJIBAN PP-2026-000042</small><h2>42,50 kg · Grade B · Rp95.625</h2><p>Operator dan petani telah menyetujui data yang sama. Catatan transaksi sudah tersimpan.</p></div><i className="portal-status blue">{stateLabel(state)}</i><div className="liability-actions"><button onClick={onReceipt}>Periksa bukti</button><a className="proof-action" href={proofUrl} target="_blank" rel="noreferrer">Lihat transaksi <Icon name="arrow"/></a>{state === "Registered" && <button className="portal-primary" onClick={onApprove}>Setujui kewajiban</button>}{state === "Approved" && <button className="portal-primary" onClick={onPayments}>Catat pembayaran IDR</button>}</div></section><div className="analytics-grid"><TrendChart title="Nilai pengadaan tercatat" subtitle={`Juta rupiah per minggu · ${periodLabel[filters.range]}`} data={scaledSeries([1.8,2.0,1.9,2.2,2.1,2.3,2.25,2.4,2.3,2.5,2.45,2.62],factor,.06)} legend={["Nilai tanda terima"]} suffix=" jt"/><RankedBars title="Konsistensi pemasok" subtitle={`${filters.scope} · Kelengkapan bukti`} rows={[{label:"Cisarua",value:Math.round(98*scopeFactor(filters.scope,options)),display:`${Math.round(98*scopeFactor(filters.scope,options))}%`},{label:"Pangalengan",value:Math.round(94*scopeFactor(filters.scope,options)),display:`${Math.round(94*scopeFactor(filters.scope,options))}%`,tone:"blue"},{label:"Ciwidey",value:Math.round(89*scopeFactor(filters.scope,options)),display:`${Math.round(89*scopeFactor(filters.scope,options))}%`,tone:"amber"}]}/></div>
   </div>;
 }
 
 function AuditorHomeLegacy({ disputed, onVerify, onDispute }: { disputed: boolean; onVerify: () => void; onDispute: () => void }) {
-  const options = ["Seluruh pilot · 18 petani","Koperasi Pucuk Sejahtera","Pabrik Teh Nusantara","Titik Koleksi Cisarua"];
+  const options = ["Seluruh pilot · 18 petani","Koperasi Lattice Sejahtera","Pabrik Teh Nusantara","Titik Koleksi Cisarua"];
   const [filters, setFilters] = useState<DashboardFilters>({scope:options[0],range:"12w"});
   const factor = demoFactor(filters, options);
   const registered = scaled(42,factor);
@@ -796,7 +796,7 @@ function FactoryHome({ paid, state, proofUrl, onApprove, onPayments, onReceipt }
 }
 
 function AuditorHome({ disputed, onVerify, onDispute }: { disputed: boolean; onVerify: () => void; onDispute: () => void }) {
-  const options = ["Seluruh pilot · 18 petani","Koperasi Pucuk Sejahtera","Pabrik Teh Nusantara","Titik Koleksi Cisarua"];
+  const options = ["Seluruh pilot · 18 petani","Koperasi Lattice Sejahtera","Pabrik Teh Nusantara","Titik Koleksi Cisarua"];
   const [filters, setFilters] = useState<DashboardFilters>({scope:options[0],range:"12w"});
   const factor = demoFactor(filters, options);
   const registered = Math.max(1,scaled(42,factor));
@@ -812,7 +812,7 @@ function AuditorHome({ disputed, onVerify, onDispute }: { disputed: boolean; onV
   ].slice(0,filters.range==="7d"?2:3);
   const auditHistory = [
     {initials:"AK",title:"Verifikasi PP-2026-000042",note:"Titik Koleksi Cisarua · 27 Jul",value:"Hash cocok",status:"Terverifikasi",tone:"green"},
-    {initials:"RM",title:"Tinjauan PP-2026-000039",note:"Koperasi Pucuk Sejahtera · 26 Jul",value:"Selisih 1 kg",status:"Investigasi",tone:"amber"},
+    {initials:"RM",title:"Tinjauan PP-2026-000039",note:"Koperasi Lattice Sejahtera · 26 Jul",value:"Selisih 1 kg",status:"Investigasi",tone:"amber"},
     {initials:"AK",title:"Rekonsiliasi PP-2026-000036",note:"Pabrik Teh Nusantara · 25 Jul",value:"1 bukti",status:"Menunggu",tone:"blue"},
     {initials:"DS",title:"Audit PP-2026-000033",note:"Titik Koleksi Cisarua · 24 Jul",value:"Lengkap",status:"Ditutup",tone:"green"},
   ].filter((item) => filters.scope === options[0] || item.note.includes(filters.scope.split(" · ")[0])).slice(0,activityLimit(filters.range));
@@ -846,7 +846,7 @@ function Intake({ step, setStep, onBegin, finish }: { step: number; setStep: (st
 
 function ReceiptView({ role, state, paid, disputed, proofUrl, proofHash, onPay, onDispute }: { role: Role; state: ReceiptState; paid: boolean; disputed: boolean; proofUrl?: string; proofHash: string; onPay: () => void; onDispute: () => void }) {
   return <div className="portal-content compact"><PageHead kicker={role === "Petani" ? "TANDA TERIMA SAYA" : "BUKTI PENERIMAAN"} title="PP-2026-000042" copy="27 Juli 2026 · Titik Koleksi Cisarua"/>
-    <div className="receipt-layout"><section className="portal-card receipt-paper"><div className="receipt-parties"><div><small>PETANI</small><strong>Sari Rahayu</strong><p>Koperasi Pucuk Sejahtera</p></div><Icon name="arrow"/><div><small>PENERIMA</small><strong>Pabrik Teh Nusantara</strong><p>Operator: Nadia Anwar</p></div></div><div className="receipt-total"><small>TOTAL YANG HARUS DIBAYAR</small><strong>Rp95.625</strong><p>42,50 kg × Rp2.250/kg</p></div><div className="receipt-facts"><p><span>Status saat ini</span><i className={`portal-status ${state === "Paid" ? "green" : "blue"}`}>{stateLabel(state)}</i></p><p><span>Perhitungan harga</span><b>Rp2.200 + Rp100 − Rp50 /kg</b></p><p><span>Komposisi kualitas</span><b>Halus 68% · Kasar 25% · Batang 7%</b></p><p><span>Protokol bukti</span><b>PP-QP-0.1 · Lengkap</b></p></div></section>
+    <div className="receipt-layout"><section className="portal-card receipt-paper"><div className="receipt-parties"><div><small>PETANI</small><strong>Sari Rahayu</strong><p>Koperasi Lattice Sejahtera</p></div><Icon name="arrow"/><div><small>PENERIMA</small><strong>Pabrik Teh Nusantara</strong><p>Operator: Nadia Anwar</p></div></div><div className="receipt-total"><small>TOTAL YANG HARUS DIBAYAR</small><strong>Rp95.625</strong><p>42,50 kg × Rp2.250/kg</p></div><div className="receipt-facts"><p><span>Status saat ini</span><i className={`portal-status ${state === "Paid" ? "green" : "blue"}`}>{stateLabel(state)}</i></p><p><span>Perhitungan harga</span><b>Rp2.200 + Rp100 − Rp50 /kg</b></p><p><span>Komposisi kualitas</span><b>Halus 68% · Kasar 25% · Batang 7%</b></p><p><span>Protokol bukti</span><b>PP-QP-0.1 · Lengkap</b></p></div></section>
     <aside><a className="portal-card chain-proof" href={proofUrl} target="_blank" rel="noreferrer" aria-label="Buka bukti transaksi PP-2026-000042"><i><Icon name="shield"/></i><div><small>BUKTI KETIDAKBERUBAHAN</small><h3>Catatan transaksi telah terverifikasi</h3><p>Ini membuktikan catatan tidak berubah setelah didaftarkan, bukan bahwa pengukuran fisik pasti benar.</p><code>{shortHash(proofHash)} <span>Buka transaksi <Icon name="arrow"/></span></code></div></a>{role === "Pabrik" && state === "Approved" && !paid && <button className="portal-primary full" onClick={onPay}>Catat pembayaran IDR</button>}{role === "Petani" && !disputed && <button className="portal-secondary full" onClick={onDispute}>Ajukan koreksi dari tanda terima ini</button>}</aside></div><ReceiptLifecycle current={state}/>
   </div>;
 }
